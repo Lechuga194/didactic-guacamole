@@ -81,6 +81,19 @@ export const syncFromChannel = async (req: Request, res: Response) => {
 	}
 };
 
+export const acceptMargin = async (req: Request, res: Response) => {
+	const db = knex(dbConf());
+	try {
+		const changed = await pricingService.setMarginAccepted(db, req.body.items, req.body.accepted);
+		socket.emit('catalog:changed');
+		res.status(200).json({ changed });
+	} catch (error) {
+		serverError(res, error);
+	} finally {
+		await db.destroy();
+	}
+};
+
 export const getCheckpoint = async (_req: Request, res: Response) => {
 	const db = knex(dbConf());
 	try {
@@ -116,4 +129,14 @@ export const history = async (req: Request, res: Response) => {
 	}
 };
 
-export default { table, setPrice, savePrices, applySuggested, syncFromChannel, getCheckpoint, saveCheckpoint, history };
+export default {
+	table,
+	setPrice,
+	savePrices,
+	applySuggested,
+	syncFromChannel,
+	acceptMargin,
+	getCheckpoint,
+	saveCheckpoint,
+	history
+};

@@ -8,6 +8,7 @@ import {
 	DaySummary,
 	HeatCell,
 	MenuEngineering,
+	PricingChannelCell,
 	ProductStat,
 	TaxSummary,
 	Totals
@@ -357,50 +358,85 @@ export const dashboard = async (db: Knex, from: string, to: string): Promise<Das
 	};
 };
 
+/** Contenido que identifica una alerta oculta: si cambia, la alerta vuelve a mostrarse. */
+const alertSignature = (a: Pick<Alert, 'title' | 'detail'>): string => `${a.title}\n${a.detail}`;
+
 /** Alertas accionables: productos con pérdida o bajo margen, alzas de costos, faltantes de precio. */
 export const alerts = async (db: Knex): Promise<Alert[]> => {
 	const ctx = await recipeService.loadCostContext(db);
-	const [table, channels, changes] = await Promise.all([
+	const [table, channels, changes, hiddenRows] = await Promise.all([
 		pricingService.pricingTable(db, ctx),
 		settingsService.listChannels(db, true),
-		ingredientService.recentCostChanges(db, 14)
+		ingredientService.recentCostChanges(db, 14),
+		db('hidden_alerts').select('alert_key', 'signature') as Promise<{ alert_key: string; signature: string }[]>
 	]);
 	const chName = new Map(channels.map((c) => [c.id, c.name]));
+	const hiddenMap = new Map(hiddenRows.map((h) => [h.alert_key, h.signature]));
 	const out: Alert[] = [];
+	/** Agrega una alerta; queda oculta si se ocultó con el mismo contenido */
+	const add = (a: Omit<Alert, 'hidden'>): void => {
+		out.push({ ...a, hidden: hiddenMap.get(a.key) === alertSignature(a) });
+	};
 
 	for (const row of table) {
-		const losses = row.channels.filter((c) => c.status === 'perdida');
-		const low = row.channels.filter((c) => c.status === 'bajo');
+		const priced = row.channels.filter((c) => c.status === 'perdida' || c.status === 'bajo');
+		const open = priced.filter((c) => !c.accepted);
+		const accepted = priced.filter((c) => c.accepted);
+		const losses = open.filter((c) => c.status === 'perdida');
+		const low = open.filter((c) => c.status === 'bajo');
 		const missing = row.channels.filter((c) => c.status === 'sin_precio');
+		const lowDetail = (c: PricingChannelCell) =>
+			`${chName.get(c.channel_id)}: ${((c.margin_pct || 0) * 100).toFixed(0)}% (objetivo ${(c.target_margin_pct * 100).toFixed(0)}%, sugerido $${c.suggested_price ?? '—'})`;
 		if (losses.length) {
 			out.push({
+				key: `margen:${row.recipe_id}`,
+				hidden: false,
 				level: 'danger',
 				type: 'margen',
 				title: `${row.name} pierde dinero`,
-				detail: losses
-					.map(
+				detail: [
+					...losses.map(
 						(c) =>
 							`${chName.get(c.channel_id)}: $${c.price} → utilidad $${c.profit} (sugerido $${c.suggested_price ?? '—'})`
-					)
-					.join(' · '),
-				link: '/precios'
+					),
+					...low.map(lowDetail)
+				].join(' · '),
+				link: '/precios',
+				recipe_id: row.recipe_id,
+				channel_ids: open.map((c) => c.channel_id)
 			});
 		} else if (low.length) {
 			out.push({
+				key: `margen:${row.recipe_id}`,
+				hidden: false,
 				level: 'warning',
 				type: 'margen',
 				title: `${row.name} está bajo el margen objetivo`,
-				detail: low
-					.map(
-						(c) =>
-							`${chName.get(c.channel_id)}: ${((c.margin_pct || 0) * 100).toFixed(0)}% (objetivo ${(c.target_margin_pct * 100).toFixed(0)}%, sugerido $${c.suggested_price ?? '—'})`
-					)
+				detail: low.map(lowDetail).join(' · '),
+				link: '/precios',
+				recipe_id: row.recipe_id,
+				channel_ids: low.map((c) => c.channel_id)
+			});
+		}
+		// Los márgenes aceptados se listan como ocultos para poder revertirlos
+		if (accepted.length) {
+			out.push({
+				key: `margen-aceptado:${row.recipe_id}`,
+				hidden: true,
+				level: accepted.some((c) => c.status === 'perdida') ? 'danger' : 'warning',
+				type: 'margen',
+				title: `${row.name}: margen aceptado`,
+				detail: accepted
+					.map((c) => `${chName.get(c.channel_id)}: ${((c.margin_pct || 0) * 100).toFixed(0)}%`)
 					.join(' · '),
-				link: '/precios'
+				link: '/precios',
+				recipe_id: row.recipe_id,
+				channel_ids: accepted.map((c) => c.channel_id)
 			});
 		}
 		if (missing.length && missing.length < row.channels.length) {
-			out.push({
+			add({
+				key: `precio:${row.recipe_id}`,
 				level: 'info',
 				type: 'precio',
 				title: `${row.name} no tiene precio en ${missing.map((c) => chName.get(c.channel_id)).join(', ')}`,
@@ -417,7 +453,8 @@ export const alerts = async (db: Knex): Promise<Alert[]> => {
 		const pct = (c.new_cost / c.old_cost - 1) * 100;
 		if (pct < 5) continue;
 		const used = ctx.items.filter((i) => i.ingredient_id === c.ingredient_id).length;
-		out.push({
+		add({
+			key: `costo:${c.ingredient_id}`,
 			level: pct >= 15 ? 'warning' : 'info',
 			type: 'costo',
 			title: `Subió ${c.name} ${pct.toFixed(0)}%`,
@@ -429,7 +466,8 @@ export const alerts = async (db: Knex): Promise<Alert[]> => {
 	for (const r of ctx.recipes) {
 		const cost = ctx.costs.get(r.id);
 		if (cost?.error)
-			out.push({
+			add({
+				key: `receta-error:${r.id}`,
 				level: 'danger',
 				type: 'receta',
 				title: `Error en ${r.name}`,
@@ -437,7 +475,8 @@ export const alerts = async (db: Knex): Promise<Alert[]> => {
 				link: `/recetas/${r.id}`
 			});
 		else if (r.active && r.kind !== 'combo' && !ctx.items.some((i) => i.recipe_id === r.id)) {
-			out.push({
+			add({
+				key: `receta-vacia:${r.id}`,
 				level: 'info',
 				type: 'receta',
 				title: `${r.name} no tiene componentes`,
@@ -448,6 +487,21 @@ export const alerts = async (db: Knex): Promise<Alert[]> => {
 	}
 	const order = { danger: 0, warning: 1, info: 2 };
 	return out.sort((a, b) => order[a.level] - order[b.level]);
+};
+
+/** Oculta (o vuelve a mostrar) alertas que no son de margen. */
+export const setAlertsHidden = async (db: Knex, keys: string[], hidden: boolean): Promise<number> => {
+	if (!hidden) return db('hidden_alerts').whereIn('alert_key', keys).delete();
+	const current = (await alerts(db)).filter((a) => keys.includes(a.key) && a.type !== 'margen');
+	await db.transaction(async (trx) => {
+		for (const a of current) {
+			await trx('hidden_alerts')
+				.insert({ alert_key: a.key, signature: alertSignature(a) })
+				.onConflict('alert_key')
+				.merge({ signature: alertSignature(a), hidden_at: trx.raw("datetime('now', 'localtime')") });
+		}
+	});
+	return current.length;
 };
 
 export default {
@@ -462,5 +516,6 @@ export default {
 	byHour,
 	daySummary,
 	dashboard,
-	alerts
+	alerts,
+	setAlertsHidden
 };

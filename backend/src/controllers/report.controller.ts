@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import knex from 'knex';
 import { dbConf } from '../config/db.config';
 import reportService from '../services/report.service';
+import socket from '../models/socket';
 import dateUtils from '../utils/date.utils';
 import { serverError, throwGenericError } from '../utils/error.utils';
 
@@ -43,4 +44,17 @@ export const alerts = async (_req: Request, res: Response) => {
 	}
 };
 
-export default { day, dashboard, alerts };
+export const hideAlerts = async (req: Request, res: Response) => {
+	const db = knex(dbConf());
+	try {
+		const changed = await reportService.setAlertsHidden(db, req.body.keys, req.body.hidden);
+		socket.emit('catalog:changed');
+		res.status(200).json({ changed });
+	} catch (error) {
+		serverError(res, error);
+	} finally {
+		await db.destroy();
+	}
+};
+
+export default { day, dashboard, alerts, hideAlerts };

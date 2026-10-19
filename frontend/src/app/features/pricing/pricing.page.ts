@@ -28,6 +28,9 @@ import { breakdown } from '../../core/pricing';
 import { ChannelBadgeComponent } from '../../shared/channel-badge.component';
 import { SimulatorDialog } from './simulator.dialog';
 
+/** Cuánto puede bajar un margen aceptado (0.5 pt) antes de volver a destacarse */
+const ACCEPT_TOLERANCE = 0.005;
+
 const keyOf = (recipeId: number, channelId: number): string => `${recipeId}:${channelId}`;
 
 @Component({
@@ -125,15 +128,15 @@ export class PricingPage {
       (r) =>
         (!term || this.norm(r.name).includes(term)) &&
         (!this.category() || (r.category || 'Sin categoría') === this.category()) &&
-        (!this.onlyProblems() ||
-          r.channels.some((c) => c.status === 'perdida' || c.status === 'bajo')),
+        (!this.onlyProblems() || r.channels.some((c) => this.isProblem(c))),
     );
   });
   readonly counts = computed(() => {
     const cells = this.view().flatMap((r) => r.channels);
     return {
-      perdida: cells.filter((c) => c.status === 'perdida').length,
-      bajo: cells.filter((c) => c.status === 'bajo').length,
+      perdida: cells.filter((c) => c.status === 'perdida' && !c.accepted).length,
+      bajo: cells.filter((c) => c.status === 'bajo' && !c.accepted).length,
+      aceptado: cells.filter((c) => c.accepted).length,
       ok: cells.filter((c) => c.status === 'ok').length,
     };
   });
@@ -265,9 +268,12 @@ export class PricingPage {
         margin_pct: null,
         food_cost_pct: null,
         status: 'sin_precio',
+        accepted: false,
       };
     }
     const b = breakdown(price, cost, ch, ivaRate);
+    const status: PricingCell['status'] =
+      b.profit < 0 ? 'perdida' : b.margin + 1e-9 < base.target_margin_pct ? 'bajo' : 'ok';
     return {
       ...base,
       price,
@@ -277,8 +283,66 @@ export class PricingPage {
       profit: Math.round(b.profit * 100) / 100,
       margin_pct: b.margin,
       food_cost_pct: price > 0 ? cost / price : null,
-      status: b.profit < 0 ? 'perdida' : b.margin + 1e-9 < base.target_margin_pct ? 'bajo' : 'ok',
+      status,
+      // Misma regla que el backend: sigue aceptado si el margen no baja más de 0.5 pt
+      accepted:
+        status !== 'ok' &&
+        base.accepted_margin !== null &&
+        b.margin + ACCEPT_TOLERANCE >= base.accepted_margin,
     };
+  }
+
+  /** Bajo meta o con pérdida, y no aceptado */
+  isProblem(c: PricingCell): boolean {
+    return (c.status === 'perdida' || c.status === 'bajo') && !c.accepted;
+  }
+
+  /** Acepta o deja de aceptar el margen de una celda (se guarda al momento; no cambia precios) */
+  async toggleAccepted(row: PricingRow, ch: Channel): Promise<void> {
+    const c = this.cell(row, ch);
+    if (!c || (c.status !== 'bajo' && c.status !== 'perdida')) return;
+    if (this.isPending(row, ch)) {
+      this.ui.ok('Guarda primero el precio nuevo para aceptar su margen');
+      return;
+    }
+    try {
+      await this.api.acceptMargin([{ recipe_id: row.recipe_id, channel_id: ch.id }], !c.accepted);
+      this.ui.ok(
+        c.accepted
+          ? `${row.name} en ${ch.name} vuelve a destacarse`
+          : `Margen de ${row.name} en ${ch.name} aceptado`,
+      );
+      await this.load();
+    } catch (err) {
+      this.ui.error(err);
+    }
+  }
+
+  /** Acepta el margen de todos los productos filtrados que están bajo meta en un canal */
+  async acceptChannel(ch: Channel): Promise<void> {
+    const items = this.filtered()
+      .filter((r) => {
+        const c = this.cell(r, ch);
+        return c && this.isProblem(c) && !this.isPending(r, ch);
+      })
+      .map((r) => ({ recipe_id: r.recipe_id, channel_id: ch.id }));
+    if (!items.length) {
+      this.ui.ok('No hay productos bajo meta que aceptar');
+      return;
+    }
+    const ok = await this.ui.confirm({
+      title: `Aceptar márgenes en ${ch.name}`,
+      message: `${items.length} producto(s) bajo la meta dejarán de destacarse en Precios y en Alertas. Si su margen baja todavía más, vuelven a aparecer.`,
+      confirm: 'Aceptar márgenes',
+    });
+    if (!ok) return;
+    try {
+      const r = await this.api.acceptMargin(items, true);
+      this.ui.ok(`${r.changed} margen(es) aceptados`);
+      await this.load();
+    } catch (err) {
+      this.ui.error(err);
+    }
   }
 
   setPrice(row: PricingRow, ch: Channel, value: string | number | null): void {
@@ -296,7 +360,10 @@ export class PricingPage {
   applyChannel(ch: Channel, statuses: string[]): void {
     const changes = this.filtered()
       .map((r) => ({ r, c: this.cell(r, ch) }))
-      .filter(({ c }) => c && statuses.includes(c.status) && c.suggested_price !== null)
+      // Los márgenes aceptados se respetan: no se les aplica el sugerido
+      .filter(
+        ({ c }) => c && statuses.includes(c.status) && !c.accepted && c.suggested_price !== null,
+      )
       .map(({ r, c }) => ({
         recipe_id: r.recipe_id,
         channel_id: ch.id,

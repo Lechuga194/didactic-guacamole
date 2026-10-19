@@ -5,6 +5,9 @@ import recipeService, { CostContext } from './recipe.service';
 import settingsService from './settings.service';
 import pricingUtils from '../utils/pricing.utils';
 
+/** Cuánto puede bajar el margen (0.5 pt) antes de que un margen aceptado vuelva a alertar */
+const ACCEPT_TOLERANCE = 0.005;
+
 export const targetFor = (channel: Channel, settings: AppSettings): number =>
 	channel.target_margin_pct ?? settings.target_margin_pct;
 
@@ -12,7 +15,8 @@ export const buildCell = (
 	cost: number,
 	price: number | null,
 	channel: Channel,
-	settings: AppSettings
+	settings: AppSettings,
+	acceptedMargin: number | null = null
 ): PricingChannelCell => {
 	const target = targetFor(channel, settings);
 	const suggested = pricingUtils.suggestedPrice(cost, channel, settings.iva_rate, target, settings.price_rounding);
@@ -28,7 +32,9 @@ export const buildCell = (
 			food_cost_pct: null,
 			suggested_price: suggested,
 			target_margin_pct: target,
-			status: 'sin_precio'
+			status: 'sin_precio',
+			accepted: false,
+			accepted_margin: acceptedMargin
 		};
 	}
 	const b = pricingUtils.breakdown(price, cost, channel, settings.iva_rate);
@@ -44,21 +50,57 @@ export const buildCell = (
 		food_cost_pct: price > 0 ? cost / price : null,
 		suggested_price: suggested,
 		target_margin_pct: target,
-		status
+		status,
+		// Sigue aceptado mientras el margen no caiga más de medio punto bajo el que se aceptó
+		accepted: status !== 'ok' && acceptedMargin !== null && b.margin_pct + ACCEPT_TOLERANCE >= acceptedMargin,
+		accepted_margin: acceptedMargin
 	};
+};
+
+type CellRef = { recipe_id: number; channel_id: number };
+
+/** Acepta (o deja de aceptar) el margen actual de productos/canales bajo la meta. */
+export const setMarginAccepted = async (db: Knex, items: CellRef[], accepted: boolean): Promise<number> => {
+	if (!accepted) {
+		return db.transaction(async (trx) => {
+			let n = 0;
+			for (const i of items) n += await trx('margin_acceptances').where(i).delete();
+			return n;
+		});
+	}
+	const table = await pricingTable(db);
+	return db.transaction(async (trx) => {
+		let n = 0;
+		for (const i of items) {
+			const cell = table
+				.find((r) => r.recipe_id === i.recipe_id)
+				?.channels.find((c) => c.channel_id === i.channel_id);
+			if (!cell || cell.margin_pct === null) continue;
+			await trx('margin_acceptances')
+				.insert({ ...i, accepted_margin: cell.margin_pct })
+				.onConflict(['recipe_id', 'channel_id'])
+				.merge({ accepted_margin: cell.margin_pct, accepted_at: trx.raw("datetime('now', 'localtime')") });
+			n++;
+		}
+		return n;
+	});
 };
 
 /** Tabla de productos vendibles con costo, precio y margen por canal (equivalente a la hoja "Venta"). */
 export const pricingTable = async (db: Knex, ctx?: CostContext): Promise<PricingRow[]> => {
 	const context = ctx || (await recipeService.loadCostContext(db));
-	const [settings, channels, prices] = await Promise.all([
+	const [settings, channels, prices, acceptances] = await Promise.all([
 		settingsService.getSettings(db),
 		settingsService.listChannels(db, true),
 		db('recipe_prices').select('recipe_id', 'channel_id', 'price') as Promise<
 			{ recipe_id: number; channel_id: number; price: number }[]
+		>,
+		db('margin_acceptances').select('recipe_id', 'channel_id', 'accepted_margin') as Promise<
+			{ recipe_id: number; channel_id: number; accepted_margin: number }[]
 		>
 	]);
 	const priceMap = new Map(prices.map((p) => [`${p.recipe_id}:${p.channel_id}`, p.price]));
+	const acceptMap = new Map(acceptances.map((a) => [`${a.recipe_id}:${a.channel_id}`, a.accepted_margin]));
 	return context.recipes
 		.filter((r) => r.kind !== 'preparacion' && r.active)
 		.map((r) => {
@@ -71,7 +113,13 @@ export const pricingTable = async (db: Knex, ctx?: CostContext): Promise<Pricing
 				cost_unit: cost.unit,
 				packaging_unit: cost.packaging_unit,
 				channels: channels.map((ch) =>
-					buildCell(cost.unit, priceMap.get(`${r.id}:${ch.id}`) ?? null, ch, settings)
+					buildCell(
+						cost.unit,
+						priceMap.get(`${r.id}:${ch.id}`) ?? null,
+						ch,
+						settings,
+						acceptMap.get(`${r.id}:${ch.id}`) ?? null
+					)
 				)
 			};
 		})
@@ -193,6 +241,7 @@ export const priceHistory = async (db: Knex, recipeId: number) =>
 export default {
 	targetFor,
 	buildCell,
+	setMarginAccepted,
 	pricingTable,
 	savePrices,
 	applySuggested,

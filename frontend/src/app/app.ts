@@ -103,7 +103,7 @@ export class App {
   private async refreshHeader(): Promise<void> {
     try {
       const [alerts, settings] = await Promise.all([this.api.alerts(), this.api.settings()]);
-      this.alertCount.set(alerts.filter((a) => a.level !== 'info').length);
+      this.alertCount.set(alerts.filter((a) => a.level !== 'info' && !a.hidden).length);
       this.businessName.set(settings.settings.business_name);
     } catch {
       /* el backend aún no responde */

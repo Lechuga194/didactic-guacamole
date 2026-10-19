@@ -487,6 +487,10 @@ export interface PricingCell {
   suggested_price: number | null;
   target_margin_pct: number;
   status: 'ok' | 'bajo' | 'perdida' | 'sin_precio';
+  /** Bajo meta (o pérdida) pero aceptado a mano: no se destaca */
+  accepted: boolean;
+  /** Margen con el que se aceptó (null si no hay aceptación) */
+  accepted_margin: number | null;
 }
 
 export interface PricingRow {
@@ -511,6 +515,12 @@ export interface Alert {
   title: string;
   detail: string;
   link?: string;
+  key: string;
+  /** Oculta a mano o margen aceptado */
+  hidden: boolean;
+  /** Alertas de margen: producto y canales que se pueden aceptar / dejar de aceptar */
+  recipe_id?: number;
+  channel_ids?: number[];
 }
 
 export interface BackupInfo {

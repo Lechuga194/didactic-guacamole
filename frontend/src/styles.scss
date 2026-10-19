@@ -356,7 +356,8 @@ body {
     color: var(--critical-text);
   }
 
-  &.sin_precio {
+  &.sin_precio,
+  &.aceptado {
     background: color-mix(in srgb, var(--text-muted) 16%, transparent);
     color: var(--text-secondary);
   }

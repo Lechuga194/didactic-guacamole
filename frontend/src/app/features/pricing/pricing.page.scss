@@ -199,6 +199,24 @@ table.pricing {
   &.ok {
     border-left-color: color-mix(in srgb, var(--good) 50%, transparent);
   }
+
+  &.aceptado {
+    border-left-color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+  }
+}
+
+.accept-btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 999px;
+
+  &:hover {
+    outline: 1px solid var(--viz-axis);
+  }
+
+  &.aceptado {
+    color: var(--text-muted);
+  }
 }
 
 .price-row {

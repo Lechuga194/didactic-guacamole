@@ -61,6 +61,14 @@
       <strong>{{ counts().ok }}</strong>
       <span class="muted">precios por canal</span>
     </div>
+    <div
+      class="card stat"
+      matTooltip="Bajo la meta pero aceptados: no se destacan ni generan alertas"
+    >
+      <span class="status aceptado"><mat-icon>done</mat-icon> Margen aceptado</span>
+      <strong>{{ counts().aceptado }}</strong>
+      <span class="muted">precios por canal</span>
+    </div>
   </div>
 
   <div class="card sync">
@@ -182,6 +190,9 @@
                     <button mat-menu-item (click)="applyChannel(ch, ['sin_precio'])">
                       Aplicar sugerido a los que no tienen precio
                     </button>
+                    <button mat-menu-item (click)="acceptChannel(ch)">
+                      <mat-icon>done</mat-icon> Aceptar margen de todos bajo meta
+                    </button>
                   </mat-menu>
                 </div>
               </th>
@@ -210,7 +221,11 @@
               </td>
               @for (ch of channels(); track ch.id) {
                 @if (cell(r, ch); as c) {
-                  <td class="price-cell" [class]="c.status" [class.pending]="isPending(r, ch)">
+                  <td
+                    class="price-cell"
+                    [class]="c.accepted ? 'aceptado' : c.status"
+                    [class.pending]="isPending(r, ch)"
+                  >
                     <div class="price-row">
                       <span class="cur">$</span>
                       <input
@@ -224,13 +239,36 @@
                         (keydown.enter)="$any($event.target).blur()"
                         [attr.aria-label]="'Precio de ' + r.name + ' en ' + ch.name"
                       />
-                      <span
-                        class="status"
-                        [class]="c.status"
-                        [matTooltip]="statusLabel[c.status].label"
-                      >
-                        <mat-icon>{{ statusLabel[c.status].icon }}</mat-icon>
-                      </span>
+                      @if (c.status === 'bajo' || c.status === 'perdida') {
+                        <button
+                          class="status accept-btn"
+                          [class]="c.accepted ? 'aceptado' : c.status"
+                          (click)="toggleAccepted(r, ch)"
+                          [matTooltip]="
+                            c.accepted
+                              ? 'Margen aceptado (' +
+                                (c.accepted_margin | pct) +
+                                '). Clic para que vuelva a destacarse.'
+                              : statusLabel[c.status].label +
+                                '. Clic para aceptar este margen y dejar de destacarlo.'
+                          "
+                          [attr.aria-label]="
+                            c.accepted ? 'Dejar de aceptar margen' : 'Aceptar margen'
+                          "
+                        >
+                          <mat-icon>{{
+                            c.accepted ? 'done' : statusLabel[c.status].icon
+                          }}</mat-icon>
+                        </button>
+                      } @else {
+                        <span
+                          class="status"
+                          [class]="c.status"
+                          [matTooltip]="statusLabel[c.status].label"
+                        >
+                          <mat-icon>{{ statusLabel[c.status].icon }}</mat-icon>
+                        </span>
+                      }
                     </div>
                     @if (isPending(r, ch)) {
                       <button
@@ -249,6 +287,7 @@
                     }
                     @if (
                       c.suggested_price !== null &&
+                      !c.accepted &&
                       (c.price === null || c.suggested_price > c.price)
                     ) {
                       <button

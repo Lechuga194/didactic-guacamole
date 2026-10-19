@@ -165,6 +165,10 @@ export class ApiService {
   dashboard = (from: string, to: string) =>
     this.get<{ dashboard: Dashboard }>('/reports/dashboard', { from, to }).then((r) => r.dashboard);
   alerts = () => this.get<{ alerts: Alert[] }>('/reports/alerts').then((r) => r.alerts);
+  hideAlerts = (keys: string[], hidden: boolean) =>
+    this.put<{ changed: number }>('/reports/alerts/hidden', { keys, hidden });
+  acceptMargin = (items: { recipe_id: number; channel_id: number }[], accepted: boolean) =>
+    this.put<{ changed: number }>('/pricing/accept-margin', { items, accepted });
 
   // Configuración
   settings = () =>

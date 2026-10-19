@@ -111,6 +111,23 @@ export const verifyApplySuggested = guard(
 	})
 );
 
+export const verifyAcceptMargin = guard(
+	Joi.object({
+		items: Joi.array()
+			.items(Joi.object({ recipe_id: id.required(), channel_id: id.required() }))
+			.min(1)
+			.required(),
+		accepted: Joi.boolean().required()
+	})
+);
+
+export const verifyHideAlerts = guard(
+	Joi.object({
+		keys: Joi.array().items(Joi.string().max(100)).min(1).required(),
+		hidden: Joi.boolean().required()
+	})
+);
+
 export const verifySyncPrices = guard(Joi.object({ source_channel_id: id.required() }));
 
 export const verifyModifierGroup = guard(
@@ -224,6 +241,8 @@ export default {
 	verifyBulkPrices,
 	verifyApplySuggested,
 	verifySyncPrices,
+	verifyAcceptMargin,
+	verifyHideAlerts,
 	verifyModifierGroup,
 	verifyPromotion,
 	verifyChannel,

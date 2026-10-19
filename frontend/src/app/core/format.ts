@@ -94,7 +94,10 @@ export const ML_PER_OZ = 29.5735;
  * Texto para tooltip con la conversión de volumen: ml → oz y oz → ml.
  * Cadena vacía para cualquier otra unidad (así el tooltip no aparece).
  */
-export const ozHint = (qty: number | string | null | undefined, unit: string | null | undefined): string => {
+export const ozHint = (
+  qty: number | string | null | undefined,
+  unit: string | null | undefined,
+): string => {
   const n = Number(qty);
   if (qty === null || qty === undefined || qty === '' || Number.isNaN(n)) return '';
   const u = (unit || '').toLowerCase();
