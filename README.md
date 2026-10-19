@@ -23,6 +23,23 @@ Cada día, al arrancar, se guarda un respaldo en `backend/data/backups/`.
 
 Otros comandos: `npm test` (pruebas del backend), `npm run start:api`, `npm run start:web`.
 
+## App de escritorio (Electron)
+
+`desktop/` empaqueta todo en una app: el backend corre dentro de la app (sin terminal) y la ventana carga el frontend que sirve ese mismo backend. En **Plataformas** los portales de DiDi, Rappi y Uber se muestran dentro de la app, lado a lado (DiDi más grande, Uber angosto), cada uno con su sesión guardada. Siguen activos, con sus sonidos de pedido nuevo, aunque cambies de sección. Los paneles se redimensionan arrastrando el divisor, se encogen y tienen zoom propio.
+
+```bash
+npm run desktop        # prueba la app en esta computadora
+npm run desktop:mac    # genera desktop/release/Cocina-x.y.z-universal.dmg (sólo en una Mac)
+npm run desktop:win    # genera el instalador .exe (sólo en Windows)
+```
+
+Sin Mac: en GitHub > Actions > **App de escritorio** > *Run workflow*. Al terminar, el `.dmg` y el `.exe` quedan en los artefactos de la corrida.
+
+- **Datos:** `~/Library/Application Support/Cocina/` en Mac y `%APPDATA%\Cocina\` en Windows (base, respaldos y sesiones de los portales). Después se pueden reemplazar desde *Archivo > Importar base de datos…*, que antes guarda una copia de la base actual en respaldos.
+- **Base incluida:** al empaquetar se mete una copia de `backend/data/cocina.sqlite` en la app, y la primera vez que se abre arranca con esos datos sin preguntar. Si la copia no existe, como en GitHub Actions, se usa `desktop/seed/cocina.sqlite`, que se actualiza con `npm --prefix desktop run seed`. Si no hay ninguna, la app ofrece importar un archivo. Con `--no-db` en `stage` se empaqueta sin base. Reinstalar la app nunca reemplaza una base que ya existe.
+- **App sin firmar:** como no tiene firma de Apple, la primera vez la Mac la bloquea. Ábrela con clic derecho > *Abrir*. En macOS recientes ve a *Ajustes del Sistema > Privacidad y seguridad > Abrir de todos modos*, o corre `xattr -cr /Applications/Cocina.app`.
+- La app sólo escucha en `127.0.0.1`, así que no se abre desde otros dispositivos de la red.
+
 ## Pantallas
 
 | Pantalla | Para qué sirve |

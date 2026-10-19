@@ -131,7 +131,8 @@ const ORDER: PortalCode[] = ['didi', 'rappi', 'uber'];
       <p class="muted small note">
         ¿Por qué ventanas y no paneles dentro de la app? Uber no permite mostrarse dentro de otra
         página y DiDi/Rappi pierden la sesión dentro de un iframe. Con ventanas separadas cada
-        portal funciona completo, con sus sonidos de pedido nuevo.
+        portal funciona completo, con sus sonidos de pedido nuevo. En la app de escritorio los tres
+        portales se muestran dentro de la app, DiDi más grande.
       </p>
     </div>
   `,

@@ -1,0 +1,48 @@
+# Genera la app de escritorio: .dmg universal para Mac (Apple e Intel) e instalador .exe para Windows.
+# Se corre a mano desde GitHub > Actions > "App de escritorio" > Run workflow, o al subir un tag v*.
+# Los instaladores quedan como artefactos descargables en la corrida.
+name: App de escritorio
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            script: dist:mac
+            files: desktop/release/*.dmg
+          - os: windows-latest
+            script: dist:win
+            files: desktop/release/*.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Dependencias
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix desktop
+
+      - name: Empaquetar
+        working-directory: desktop
+        run: npm run ${{ matrix.script }}
+        env:
+          # Sin certificado de Apple/Windows: la app sale sin firmar
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cocina-${{ matrix.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error

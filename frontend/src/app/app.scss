@@ -9,6 +9,15 @@ mat-sidenav-content {
   background: transparent;
 }
 
+/* App de escritorio: en /plataformas los portales ocupan todo el contenido */
+main.under-dock {
+  display: none;
+}
+
+app-portal-dock.with-topbar.shown {
+  height: calc(100% - 64px);
+}
+
 .nav {
   width: 256px;
   border-right: 1px solid var(--card-border);
@@ -26,6 +35,7 @@ mat-sidenav-content {
   ::ng-deep .mat-drawer-inner-container {
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
   }
 }
 

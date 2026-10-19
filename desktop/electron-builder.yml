@@ -1,0 +1,29 @@
+appId: mx.cocina.desktop
+productName: Cocina
+copyright: Cocina
+directories:
+  app: build/app
+  output: release
+  buildResources: resources
+# Sin asar: tesseract.js lanza un worker_thread desde su carpeta
+asar: false
+electronVersion: 44.9.0
+# better-sqlite3 trae binarios N-API (Mac Intel/Apple, Windows) que sirven en Electron sin recompilar
+npmRebuild: false
+mac:
+  category: public.app-category.business
+  # Los binarios de ambas arquitecturas ya vienen incluidos; el build universal los deja tal cual
+  x64ArchFiles: '**/better-sqlite3/prebuilds/**'
+  target:
+    - target: dmg
+  # Sin cuenta de Apple Developer la app no se firma; se abre con clic derecho > Abrir la primera vez
+  identity: null
+  hardenedRuntime: false
+dmg:
+  title: Cocina
+win:
+  target:
+    - target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

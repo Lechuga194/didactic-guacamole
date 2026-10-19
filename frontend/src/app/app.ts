@@ -14,6 +14,8 @@ import { filter, map } from 'rxjs';
 import { ApiService } from './core/api.service';
 import { LiveService } from './core/live.service';
 import { UiService } from './core/ui.service';
+import { DesktopService } from './core/desktop.service';
+import { PortalDockComponent } from './features/platforms/portal-dock.component';
 
 interface NavItem {
   path: string;
@@ -35,6 +37,7 @@ interface NavItem {
     MatBadgeModule,
     MatTooltipModule,
     MatMenuModule,
+    PortalDockComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -44,6 +47,7 @@ export class App {
   private router = inject(Router);
   readonly live = inject(LiveService);
   readonly ui = inject(UiService);
+  readonly desktop = inject(DesktopService);
 
   readonly isMobile = toSignal(
     inject(BreakpointObserver)
@@ -54,6 +58,15 @@ export class App {
   readonly opened = signal(true);
   readonly businessName = signal('Mi Dark Kitchen');
   readonly alertCount = signal(0);
+  private url = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects),
+    ),
+    { initialValue: '' },
+  );
+  /** App de escritorio: los portales embebidos se muestran en /plataformas */
+  readonly dockShown = computed(() => this.desktop.active && this.url().startsWith('/plataformas'));
 
   readonly sections: { title: string; items: NavItem[] }[] = [
     {
@@ -90,6 +103,7 @@ export class App {
   constructor() {
     inject(MatIconRegistry).setDefaultFontSetClass('material-symbols-rounded');
     effect(() => this.opened.set(!this.isMobile()));
+    effect(() => this.desktop.setBadge(this.alertCount()));
     effect(() => {
       this.live.catalogVersion();
       this.live.ordersVersion();
