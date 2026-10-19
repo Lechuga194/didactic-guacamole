@@ -1,0 +1,86 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav class="nav" [mode]="mode()" [opened]="opened()" (closedStart)="opened.set(false)">
+    <div class="brand">
+      <div class="logo"><mat-icon>{{ ui.themeDef().icon }}</mat-icon></div>
+      <div>
+        <div class="name">{{ businessName() }}</div>
+        <div class="tag">Costeo y ventas</div>
+      </div>
+    </div>
+
+    <a mat-flat-button class="cta" routerLink="/venta/nueva">
+      <mat-icon>add</mat-icon>
+      Registrar venta
+    </a>
+
+    @for (section of sections; track section.title) {
+      @if (section.title) {
+        <div class="section">{{ section.title }}</div>
+      }
+      <mat-nav-list>
+        @for (item of section.items; track item.path) {
+          <a
+            mat-list-item
+            [routerLink]="item.path"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: item.path === '/venta/nueva' }"
+          >
+            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+            <span matListItemTitle>{{ item.label }}</span>
+            @if (item.path === '/alertas' && alertCount() > 0) {
+              <span matListItemMeta class="count">{{ alertCount() }}</span>
+            }
+          </a>
+        }
+      </mat-nav-list>
+    }
+
+    <div class="foot">
+      <span class="live" [class.on]="live.connected()">
+        <span class="pulse"></span>
+        {{ live.connected() ? 'En vivo' : 'Sin conexión' }}
+      </span>
+      <span class="spacer"></span>
+      <button mat-icon-button [matMenuTriggerFor]="themeMenu" matTooltip="Tema" aria-label="Cambiar tema">
+        <mat-icon>palette</mat-icon>
+      </button>
+      <mat-menu #themeMenu="matMenu" yPosition="above">
+        @for (t of ui.themes; track t.id) {
+          <button mat-menu-item (click)="ui.setTheme(t.id)">
+            <span class="theme-item">
+              <span class="swatch">
+                @for (c of t.preview; track $index) {
+                  <span [style.background]="c"></span>
+                }
+              </span>
+              {{ t.name }}
+              @if (ui.theme() === t.id) {
+                <mat-icon class="check">check</mat-icon>
+              }
+            </span>
+          </button>
+        }
+        <a mat-menu-item routerLink="/configuracion" [queryParams]="{ tab: 'apariencia' }">
+          <mat-icon>tune</mat-icon> Ver todos los temas
+        </a>
+      </mat-menu>
+    </div>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    @if (isMobile()) {
+      <mat-toolbar class="topbar">
+        <button mat-icon-button (click)="opened.set(true)" aria-label="Abrir menú"><mat-icon>menu</mat-icon></button>
+        <span>{{ businessName() }}</span>
+        <span class="spacer"></span>
+        <a mat-icon-button routerLink="/alertas" aria-label="Alertas">
+          <mat-icon [matBadge]="alertCount() || null" matBadgeSize="small">notifications</mat-icon>
+        </a>
+        <a mat-icon-button routerLink="/venta/nueva" aria-label="Registrar venta"><mat-icon>add_shopping_cart</mat-icon></a>
+      </mat-toolbar>
+    }
+    <main>
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

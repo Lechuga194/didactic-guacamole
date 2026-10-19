@@ -1,0 +1,253 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <div class="subtitle">¿Qué se vende, por dónde y cuánto te deja realmente?</div>
+    </div>
+    <span class="spacer"></span>
+    <a mat-stroked-button [href]="exportUrl()" download><mat-icon>download</mat-icon> Excel</a>
+  </div>
+
+  <div class="card filters">
+    <mat-button-toggle-group [value]="preset()" (change)="applyPreset($event.value)" aria-label="Periodo">
+      <mat-button-toggle value="7d">7 días</mat-button-toggle>
+      <mat-button-toggle value="30d">30 días</mat-button-toggle>
+      <mat-button-toggle value="mes">Este mes</mat-button-toggle>
+      <mat-button-toggle value="mes_ant">Mes anterior</mat-button-toggle>
+      <mat-button-toggle value="90d">90 días</mat-button-toggle>
+    </mat-button-toggle-group>
+    <mat-form-field appearance="outline" class="dense">
+      <mat-label>Desde</mat-label>
+      <input matInput type="date" [ngModel]="from()" (ngModelChange)="from.set($event); preset.set('custom')" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="dense">
+      <mat-label>Hasta</mat-label>
+      <input matInput type="date" [ngModel]="to()" (ngModelChange)="to.set($event); preset.set('custom')" />
+    </mat-form-field>
+  </div>
+
+  @if (loading() && !data()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (data(); as d) {
+    <div class="grid grid-kpi block">
+      <app-kpi [hero]="true" icon="payments" label="Venta neta" [value]="money(d.totals.net_sale)" [deltaPct]="dNet()" />
+      <app-kpi
+        icon="savings"
+        label="Utilidad real"
+        [value]="money(d.totals.profit_amount)"
+        [negative]="d.totals.profit_amount < 0"
+        [deltaPct]="dProfit()"
+        help="Antes de gastos fijos (renta, sueldos, servicios)."
+      />
+      <app-kpi icon="percent" label="Margen real" [value]="pct(d.totals.margin_pct)" [negative]="d.totals.margin_pct < 0" sub="Utilidad / venta neta" />
+      <app-kpi icon="receipt_long" label="Pedidos" [value]="d.totals.orders + ''" [deltaPct]="dOrders()" />
+      <app-kpi icon="shopping_bag" label="Ticket promedio" [value]="money(d.totals.avg_ticket)" [deltaPct]="dTicket()" />
+      <app-kpi
+        icon="storefront"
+        label="Comisiones pagadas"
+        [value]="money(d.totals.commission_amount)"
+        [sub]="pct(d.totals.net_sale ? d.totals.commission_amount / d.totals.net_sale : 0) + ' de la venta neta'"
+      />
+    </div>
+
+    @if (!d.totals.orders) {
+      <div class="card empty">
+        <mat-icon>query_stats</mat-icon>
+        No hay ventas en este periodo. <a routerLink="/venta/nueva">Registra la primera</a>.
+      </div>
+    } @else {
+      <div class="card block">
+        <div class="card-title">Venta neta y utilidad por día</div>
+        <app-chart [config]="dailyChart()" [height]="280" label="Venta neta y utilidad diaria" />
+      </div>
+
+      <div class="grid grid-2 block">
+        <div class="card">
+          <div class="card-title">Rentabilidad por canal</div>
+          <div class="card-subtitle">Cuánto vendes y cuánto te queda en cada plataforma</div>
+          <div class="table-wrap">
+          <table class="simple">
+            <thead>
+              <tr>
+                <th>Canal</th>
+                <th>Venta neta</th>
+                <th class="num">Pedidos</th>
+                <th class="num">Comisión</th>
+                <th class="num">Utilidad</th>
+                <th class="num">Margen</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of d.by_channel; track c.channel_id) {
+                <tr>
+                  <td><app-channel [name]="c.channel_name" [hex]="c.color" /></td>
+                  <td class="bar-cell">
+                    <div class="hbar"><div class="fill" [style.width.%]="(c.net_sale / channelMax()) * 100"></div></div>
+                    <span class="num">{{ c.net_sale | money }}</span>
+                  </td>
+                  <td class="num">{{ c.orders }}</td>
+                  <td class="num">{{ c.commission_amount | money }}</td>
+                  <td class="num" [class.neg]="c.profit_amount < 0">{{ c.profit_amount | money }}</td>
+                  <td class="num" [class.neg]="c.margin_pct < 0">{{ c.margin_pct | pct }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            Productos estrella
+            <span class="spacer"></span>
+            <mat-button-toggle-group [value]="productMetric()" (change)="productMetric.set($event.value)" class="small-toggle">
+              <mat-button-toggle value="units">Más vendidos</mat-button-toggle>
+              <mat-button-toggle value="profit">Más utilidad</mat-button-toggle>
+            </mat-button-toggle-group>
+          </div>
+          <app-chart [config]="productChart()" [height]="300" label="Productos más vendidos" />
+        </div>
+      </div>
+
+      <div class="card block">
+        <div class="card-title">
+          Ingeniería de menú
+          <mat-icon class="help" matTooltip="Clasifica cada producto cruzando popularidad (unidades) y utilidad por unidad. Las líneas punteadas son el 70% de la popularidad promedio y la utilidad promedio.">info</mat-icon>
+        </div>
+        <div class="card-subtitle">Decide qué subir de precio, qué promover y qué quitar</div>
+        <div class="menu-layout">
+          <app-chart [config]="menuChart()" [height]="360" label="Mapa de popularidad contra utilidad por producto" />
+          <div class="menu-groups">
+            @for (g of menuGroups(); track g.key) {
+              <div class="menu-group">
+                <div class="mg-title"><mat-icon>{{ g.icon }}</mat-icon> {{ g.label }} <span class="muted">· {{ g.items.length }}</span></div>
+                <div class="muted small">{{ g.advice }}</div>
+                <div class="mg-items">
+                  @for (p of g.items.slice(0, 6); track p.name) {
+                    <span class="pill" [matTooltip]="p.units + ' uds · ' + money(p.profit_per_unit) + ' por unidad'">{{ p.name }}</span>
+                  } @empty {
+                    <span class="muted small">—</span>
+                  }
+                  @if (g.items.length > 6) {
+                    <span class="muted small">+{{ g.items.length - 6 }} más</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 block">
+        <div class="card">
+          <div class="card-title">¿Cuándo vendes más?</div>
+          <div class="card-subtitle">Pedidos por día de la semana y hora</div>
+          <div class="heat-wrap">
+            <table class="heat">
+              <thead>
+                <tr>
+                  <th></th>
+                  @for (h of heat().hours; track h) {
+                    <th>{{ h }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of heat().rows; track r.label) {
+                  <tr>
+                    <th>{{ r.label }}</th>
+                    @for (c of r.cells; track c.hour) {
+                      <td
+                        [style.background]="heatColor(c.level)"
+                        [matTooltip]="c.orders ? r.label + ' ' + c.hour + ':00 · ' + c.orders + ' pedidos · ' + money(c.net) : ''"
+                      >
+                        @if (c.orders) {
+                          <span [class.light]="c.level > 0.55">{{ c.orders }}</span>
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Ventas por categoría</div>
+          @for (c of d.by_category; track c.category) {
+            <div class="cat">
+              <div class="cat-head">
+                <span>{{ c.category }}</span>
+                <span class="muted">{{ c.units }} uds</span>
+                <span class="spacer"></span>
+                <strong class="num">{{ c.sales | money }}</strong>
+                <span class="num cat-profit" [class.neg]="c.profit < 0">{{ c.profit | money }} utilidad</span>
+              </div>
+              <div class="hbar"><div class="fill" [style.width.%]="(c.sales / categoryMax()) * 100"></div></div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="grid grid-3 block">
+        <div class="card">
+          <div class="card-title"><mat-icon>balance</mat-icon> Punto de equilibrio</div>
+          @if (d.break_even.monthly_fixed > 0) {
+            <div class="stat-line"><span>Gastos fijos al mes</span><strong>{{ d.break_even.monthly_fixed | money }}</strong></div>
+            <div class="stat-line"><span>Gasto fijo por día</span><strong>{{ d.break_even.daily_fixed | money }}</strong></div>
+            <div class="stat-line"><span>Utilidad promedio por pedido</span><strong>{{ d.break_even.avg_profit_per_order | money }}</strong></div>
+            <div class="be-box" [class.ok]="d.break_even.avg_orders_per_day >= (d.break_even.orders_per_day_needed ?? 9999)">
+              @if (d.break_even.orders_per_day_needed !== null) {
+                Necesitas <strong>{{ d.break_even.orders_per_day_needed }}</strong> pedidos al día
+                (≈ {{ d.break_even.sales_per_day_needed | money }}) para cubrir gastos fijos.
+                Vas en <strong>{{ d.break_even.avg_orders_per_day }}</strong> pedidos/día.
+              } @else {
+                Tu utilidad por pedido es negativa: ningún volumen cubre los gastos fijos. Revisa precios.
+              }
+            </div>
+            <div class="stat-line">
+              <span>Resultado después de fijos ({{ d.break_even.days_in_range }} días)</span>
+              <strong [class.neg]="d.break_even.net_after_fixed < 0" [class.pos]="d.break_even.net_after_fixed >= 0">{{ d.break_even.net_after_fixed | money }}</strong>
+            </div>
+          } @else {
+            <p class="secondary">Registra tus gastos fijos (renta, gas, luz, sueldos, internet) para saber cuántos pedidos al día necesitas para no perder.</p>
+            <a mat-stroked-button routerLink="/configuracion" [queryParams]="{ tab: 'gastos' }">Capturar gastos fijos</a>
+          }
+        </div>
+
+        <div class="card">
+          <div class="card-title"><mat-icon>account_balance</mat-icon> Impuestos del periodo</div>
+          <div class="stat-line"><span>Base sin IVA</span><strong>{{ d.taxes.base_sin_iva | money }}</strong></div>
+          <div class="stat-line"><span>IVA trasladado</span><strong>{{ d.taxes.iva_trasladado | money }}</strong></div>
+          <div class="stat-line"><span>IVA retenido por plataformas</span><strong>−{{ d.taxes.iva_retenido | money }}</strong></div>
+          <div class="stat-line big"><span>IVA a pagar (antes de acreditable)</span><strong>{{ d.taxes.iva_por_pagar | money }}</strong></div>
+          <div class="stat-line"><span>ISR retenido por plataformas</span><strong>{{ d.taxes.isr_retenido | money }}</strong></div>
+          <div class="muted small">Estimación informativa. El IVA de tus compras (acreditable) reduce el IVA a pagar; confirma con tu contador.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><mat-icon>trending_down</mat-icon> Menor margen</div>
+          @for (p of d.worst_by_margin; track p.name) {
+            <div class="stat-line">
+              <span>{{ p.name }} <span class="muted">· {{ p.units }} uds</span></span>
+              <strong [class.neg]="p.margin_pct < 0">{{ p.margin_pct | pct }}</strong>
+            </div>
+          }
+          @if (d.promotions.length) {
+            <div class="card-title promo-title"><mat-icon>local_offer</mat-icon> Costo de promociones</div>
+            @for (p of d.promotions; track p.description) {
+              <div class="stat-line">
+                <span>{{ p.description }} <span class="muted">· {{ p.times }}×</span></span>
+                <strong>{{ p.store_amount | money }}</strong>
+              </div>
+            }
+          }
+          <a mat-button routerLink="/precios">Revisar precios <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
+        </div>
+      </div>
+    }
+  }
+</div>

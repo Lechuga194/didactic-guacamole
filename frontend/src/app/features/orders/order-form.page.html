@@ -1,0 +1,457 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>{{ orderId() ? 'Editar venta #' + orderId() : 'Registrar venta' }}</h1>
+      <div class="subtitle">
+        @if (orderId()) {
+          Los costos de los productos que no cambies se conservan como estaban el día de la venta.
+        } @else {
+          Captura a mano o pega la captura del ticket (⌘V / Ctrl+V) y revisa antes de guardar.
+        }
+      </div>
+    </div>
+    <span class="spacer"></span>
+    @if (orderId()) {
+      <button mat-stroked-button class="danger-text" (click)="remove()"><mat-icon>delete</mat-icon> Eliminar</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  } @else {
+    <div class="layout">
+      <!-- ============================ COLUMNA PRINCIPAL ============================ -->
+      <div class="main">
+        <!-- Captura -->
+        <div
+          class="card drop"
+          [class.over]="dragOver()"
+          [class.compact]="!!draft() && !captura()"
+          (dragover)="$event.preventDefault(); dragOver.set(true)"
+          (dragleave)="dragOver.set(false)"
+          (drop)="onDrop($event)"
+        >
+          @if (scanning()) {
+            <div class="drop-inner">
+              <mat-icon class="spin">progress_activity</mat-icon>
+              <div>
+                <strong>Leyendo el ticket…</strong>
+                <div class="secondary">La primera lectura tarda unos segundos mientras se carga el motor OCR.</div>
+              </div>
+            </div>
+          } @else {
+            <div class="drop-inner">
+              <mat-icon>document_scanner</mat-icon>
+              <div class="grow">
+                <strong>Autollenar desde captura de DiDi o Uber</strong>
+                <div class="secondary">Arrastra la imagen aquí, pégala con ⌘V / Ctrl+V o elígela.</div>
+              </div>
+              <button mat-stroked-button (click)="file.click()"><mat-icon>upload</mat-icon> Elegir imagen</button>
+              <input #file type="file" accept="image/png,image/jpeg" hidden (change)="onFile($event)" />
+            </div>
+          }
+        </div>
+
+        @if (draft(); as d) {
+          @if (d.warnings.length || reviewCount()) {
+            <div class="card warn">
+              <mat-icon>fact_check</mat-icon>
+              <div>
+                <strong>Revisa la lectura</strong>
+                <ul>
+                  @if (reviewCount()) {
+                    <li>{{ reviewCount() }} producto(s) marcados como "Revisar" o "Elegir producto".</li>
+                  }
+                  @for (w of d.warnings; track w) {
+                    <li>{{ w }}</li>
+                  }
+                </ul>
+              </div>
+            </div>
+          }
+        }
+
+        <!-- Canal y fecha -->
+        <div class="card">
+          <div class="card-title">¿Por dónde se vendió?</div>
+          <div class="channels">
+            @for (c of channels(); track c.id) {
+              <button
+                type="button"
+                class="channel-btn"
+                [class.selected]="channelId() === c.id"
+                [style.--ch]="colorOf(c)"
+                (click)="setChannel(c.id)"
+              >
+                <span class="dot" [style.background]="colorOf(c)"></span>
+                <span class="ch-name">{{ c.name }}</span>
+                <span class="ch-fee">{{ c.commission_pct | pct }} comisión</span>
+                @if (channelId() === c.id) {
+                  <mat-icon class="check">check_circle</mat-icon>
+                }
+              </button>
+            }
+          </div>
+          <div class="row fields">
+            <mat-form-field appearance="outline" class="dense">
+              <mat-label>Fecha</mat-label>
+              <input matInput type="date" [ngModel]="date()" (ngModelChange)="date.set($event)" required />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="dense">
+              <mat-label>Hora</mat-label>
+              <input matInput type="time" [ngModel]="time()" (ngModelChange)="time.set($event)" required />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="dense grow">
+              <mat-label>Folio / ID del pedido (opcional)</mat-label>
+              <input matInput [(ngModel)]="externalRef" />
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Productos -->
+        <div class="card">
+          <div class="card-title">
+            Productos
+            <span class="muted">· {{ itemCount() }}</span>
+          </div>
+
+          <mat-form-field appearance="outline" class="full dense search">
+            <mat-icon matPrefix>search</mat-icon>
+            <mat-label>Buscar producto y presionar Enter</mat-label>
+            <input
+              matInput
+              [(ngModel)]="search"
+              (ngModelChange)="searchTerm.set($event)"
+              [matAutocomplete]="auto"
+              (keydown.enter)="addFirstMatch()"
+            />
+            <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSearchSelected($event)" [displayWith]="productLabel">
+              @for (p of filtered(); track p.id) {
+                <mat-option [value]="p">
+                  <div class="opt">
+                    <span>{{ p.name }}</span>
+                    <span class="muted">{{ priceFor(p.id) | money }}</span>
+                  </div>
+                </mat-option>
+              }
+            </mat-autocomplete>
+          </mat-form-field>
+
+          <div class="quick">
+            @for (p of favorites(); track p.id) {
+              <button type="button" class="quick-btn" (click)="addProduct(p)" [matTooltip]="'Costo ' + (p.cost | money)">
+                <span class="q-name">{{ p.name }}</span>
+                <span class="q-price">{{ priceFor(p.id) | money }}</span>
+              </button>
+            }
+          </div>
+
+          @if (!lines().length) {
+            <div class="empty">
+              <mat-icon>shopping_basket</mat-icon>
+              Toca un producto de arriba, búscalo o sube la captura del ticket.
+            </div>
+          }
+
+          <div class="lines">
+            @for (line of lines(); track line.key) {
+              <div class="line" [class.needs-review]="line.ocr && line.ocr.confidence !== 'alta' && line.recipe_id === line.ocr.original_recipe_id" [class.unmatched]="!line.recipe_id">
+                <div class="line-main">
+                  <div class="qty">
+                    <button mat-icon-button (click)="qty(line, -1)" [disabled]="line.quantity <= 1" aria-label="Menos"><mat-icon>remove</mat-icon></button>
+                    <input class="qty-input" type="number" min="1" [(ngModel)]="line.quantity" (ngModelChange)="touch()" aria-label="Cantidad" />
+                    <button mat-icon-button (click)="qty(line, 1)" aria-label="Más"><mat-icon>add</mat-icon></button>
+                  </div>
+
+                  <div class="what">
+                    @if (line.ocr) {
+                      <div class="ocr">
+                        <span class="status" [class.ok]="line.ocr.confidence === 'alta'" [class.bajo]="line.ocr.confidence !== 'alta' && !!line.recipe_id" [class.perdida]="!line.recipe_id">
+                          <mat-icon>{{ line.ocr.confidence === 'alta' ? 'check_circle' : !line.recipe_id ? 'error' : 'help' }}</mat-icon>
+                          {{ line.recipe_id ? confidenceLabel(line.ocr.confidence) : 'Elegir producto' }}
+                        </span>
+                        <span class="muted">Ticket: {{ line.ocr.raw_name }}</span>
+                        @if (!line.recipe_id && line.children.length) {
+                          <button mat-stroked-button class="mini-btn" (click)="createCombo(line)"><mat-icon>add</mat-icon> Crear este combo</button>
+                        }
+                      </div>
+                    }
+                    <mat-form-field appearance="outline" class="dense full product-select">
+                      <mat-select [ngModel]="line.recipe_id" (ngModelChange)="changeRecipe(line, $event)" placeholder="Elige el producto">
+                        @if (line.ocr?.candidates?.length) {
+                          <mat-optgroup label="Sugerencias">
+                            @for (c of line.ocr!.candidates; track c.recipe_id) {
+                              <mat-option [value]="c.recipe_id">{{ c.name }}</mat-option>
+                            }
+                          </mat-optgroup>
+                        }
+                        <mat-optgroup label="Todos los productos">
+                          @for (p of data()?.products; track p.id) {
+                            <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                          }
+                        </mat-optgroup>
+                      </mat-select>
+                    </mat-form-field>
+                  </div>
+
+                  <mat-form-field appearance="outline" class="dense price">
+                    <mat-label>Precio</mat-label>
+                    <span matTextPrefix>$&nbsp;</span>
+                    <input matInput type="number" min="0" step="0.5" [(ngModel)]="line.unit_price" (ngModelChange)="line.priceTouched = true; touch()" />
+                  </mat-form-field>
+
+                  <div class="line-total num">{{ lineTotal(line) | money }}</div>
+
+                  <button mat-icon-button (click)="line.showMods = !line.showMods; touch()" [matTooltip]="isCombo(line) ? 'Productos del combo' : 'Modificadores'" aria-label="Modificadores">
+                    <mat-icon>{{ isCombo(line) ? 'lunch_dining' : 'tune' }}</mat-icon>
+                  </button>
+                  <button mat-icon-button (click)="removeLine(line)" matTooltip="Quitar" aria-label="Quitar"><mat-icon>close</mat-icon></button>
+                </div>
+
+                @if (line.modifiers.length && !line.showMods) {
+                  <div class="mod-summary">
+                    @for (m of line.modifiers; track $index) {
+                      <span class="mod-chip">{{ m.name }}@if (m.price_delta) { <b>+{{ m.price_delta | money }}</b> }</span>
+                    }
+                  </div>
+                }
+                @if (line.children.length && !line.showMods) {
+                  <div class="mod-summary">
+                    <mat-icon class="tiny">subdirectory_arrow_right</mat-icon>
+                    @for (c of line.children; track c.key) {
+                      <span class="mod-chip combo">{{ c.quantity }}× {{ c.name }}</span>
+                    }
+                  </div>
+                }
+
+                @if (line.showMods) {
+                  <div class="mods">
+                    @for (g of groupsFor(line); track g.id) {
+                      <div class="group">
+                        <div class="group-name">
+                          {{ g.name }}
+                          @if (g.defines_variant) {
+                            <span class="muted">· elige uno</span>
+                          }
+                        </div>
+                        <mat-chip-listbox [multiple]="!g.defines_variant" aria-label="Opciones">
+                          @for (o of activeOptions(g); track o.id) {
+                            <mat-chip-option [selected]="hasOption(line, o)" (click)="toggleOption(line, g, o)">
+                              {{ o.name }}@if (o.price_delta) { &nbsp;+{{ o.price_delta | money }} }
+                            </mat-chip-option>
+                          }
+                        </mat-chip-listbox>
+                      </div>
+                    }
+
+                    @if (looseMods(line).length) {
+                      <div class="group">
+                        <div class="group-name">Otros modificadores</div>
+                        <mat-chip-set>
+                          @for (m of looseMods(line); track $index) {
+                            <mat-chip (removed)="removeMod(line, m)">
+                              {{ m.group_name ? m.group_name + ': ' : '' }}{{ m.name }}
+                              @if (m.price_delta) { +{{ m.price_delta | money }} }
+                              <button matChipRemove aria-label="Quitar"><mat-icon>cancel</mat-icon></button>
+                            </mat-chip>
+                          }
+                        </mat-chip-set>
+                      </div>
+                    }
+
+                    <div class="row add-mod">
+                      <button mat-button [matMenuTriggerFor]="modMenu"><mat-icon>add</mat-icon> Modificador del catálogo</button>
+                      <mat-menu #modMenu="matMenu">
+                        @for (g of otherGroups(line); track g.id) {
+                          <button mat-menu-item [matMenuTriggerFor]="optMenu">{{ g.name }}</button>
+                          <mat-menu #optMenu="matMenu">
+                            @for (o of activeOptions(g); track o.id) {
+                              <button mat-menu-item (click)="addCatalogMod(line, g, o)">
+                                {{ o.name }} @if (o.price_delta) { (+{{ o.price_delta | money }}) }
+                              </button>
+                            }
+                          </mat-menu>
+                        } @empty {
+                          <div class="muted menu-empty">No hay más grupos</div>
+                        }
+                      </mat-menu>
+                      <span class="muted">o extra libre:</span>
+                      <input #mn class="mini" placeholder="Nombre" />
+                      <input #mp class="mini num-in" type="number" placeholder="Precio" />
+                      <input #mc class="mini num-in" type="number" placeholder="Costo" />
+                      <button mat-icon-button (click)="addFreeMod(line, mn.value, mp.value, mc.value); mn.value = ''; mp.value = ''; mc.value = ''" aria-label="Agregar extra">
+                        <mat-icon>add_circle</mat-icon>
+                      </button>
+                    </div>
+
+                    @if (isCombo(line) || line.children.length) {
+                      <div class="combo">
+                        <div class="group-name">Productos incluidos en el combo</div>
+                        @for (c of line.children; track c.key) {
+                          <div class="child">
+                            <input class="mini qty-mini" type="number" min="1" [(ngModel)]="c.quantity" (ngModelChange)="touch()" aria-label="Cantidad" />
+                            <mat-form-field appearance="outline" class="dense grow">
+                              <mat-select [ngModel]="c.recipe_id" (ngModelChange)="changeRecipe(c, $event)" placeholder="Elige el producto">
+                                @if (c.ocr?.candidates?.length) {
+                                  <mat-optgroup label="Sugerencias">
+                                    @for (cand of c.ocr!.candidates; track cand.recipe_id) {
+                                      <mat-option [value]="cand.recipe_id">{{ cand.name }}</mat-option>
+                                    }
+                                  </mat-optgroup>
+                                }
+                                <mat-optgroup label="Todos">
+                                  @for (p of data()?.products; track p.id) {
+                                    <mat-option [value]="p.id">{{ p.name }}</mat-option>
+                                  }
+                                </mat-optgroup>
+                              </mat-select>
+                            </mat-form-field>
+                            @if (c.ocr) {
+                              <span class="muted small">Ticket: {{ c.ocr.raw_name }}</span>
+                            }
+                            <button mat-icon-button (click)="removeLine(c, line)" aria-label="Quitar"><mat-icon>close</mat-icon></button>
+                          </div>
+                        }
+                        <button mat-button [matMenuTriggerFor]="childMenu"><mat-icon>add</mat-icon> Agregar producto al combo</button>
+                        <mat-menu #childMenu="matMenu" class="tall-menu">
+                          @for (p of data()?.products; track p.id) {
+                            @if (p.kind === 'producto_final') {
+                              <button mat-menu-item (click)="addProduct(p, line)">{{ p.name }}</button>
+                            }
+                          }
+                        </mat-menu>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Promociones -->
+        <div class="card">
+          <div class="card-title">
+            Promociones y descuentos
+            <span class="spacer"></span>
+            <button mat-stroked-button [matMenuTriggerFor]="promoMenu" [disabled]="!lines().length"><mat-icon>local_offer</mat-icon> Agregar</button>
+            <mat-menu #promoMenu="matMenu">
+              @for (p of activePromos(); track p.id) {
+                <button mat-menu-item (click)="addPromo(p)">{{ p.name }}</button>
+              }
+              <button mat-menu-item (click)="addPromo()"><mat-icon>edit</mat-icon> Otra (monto manual)</button>
+              <mat-divider />
+              <a mat-menu-item routerLink="/promociones"><mat-icon>settings</mat-icon> Administrar promociones</a>
+            </mat-menu>
+          </div>
+          @for (p of promos(); track p.key) {
+            <div class="promo">
+              <div class="row">
+                <mat-form-field appearance="outline" class="dense grow">
+                  <mat-label>Descripción</mat-label>
+                  <input matInput [(ngModel)]="p.description" (ngModelChange)="promos.set([...promos()])" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="dense money-field">
+                  <mat-label>Lo paga la tienda</mat-label>
+                  <span matTextPrefix>$&nbsp;</span>
+                  <input matInput type="number" min="0" [(ngModel)]="p.store_amount" (ngModelChange)="promoManual(p)" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="dense money-field">
+                  <mat-label>Lo paga la plataforma</mat-label>
+                  <span matTextPrefix>$&nbsp;</span>
+                  <input matInput type="number" min="0" [(ngModel)]="p.platform_amount" (ngModelChange)="promoManual(p)" />
+                </mat-form-field>
+                <button mat-icon-button (click)="removePromo(p)" aria-label="Quitar promoción"><mat-icon>close</mat-icon></button>
+              </div>
+              <div class="row applies">
+                <span class="muted">Aplica a:</span>
+                @for (l of lines(); track l.key) {
+                  <button type="button" class="mini-chip" [class.on]="p.lineKeys.includes(l.key)" (click)="togglePromoLine(p, l.key)">
+                    {{ l.quantity }}× {{ l.name }}
+                  </button>
+                }
+                @if (promoDef(p) && !p.manual) {
+                  <span class="muted small">· monto calculado automáticamente</span>
+                }
+              </div>
+            </div>
+          } @empty {
+            <div class="muted">Sin promociones. Si el ticket trae "costo de promoción de la tienda" se agrega solo.</div>
+          }
+        </div>
+
+        <div class="card">
+          <mat-form-field appearance="outline" class="full dense">
+            <mat-label>Notas (opcional)</mat-label>
+            <textarea matInput rows="2" [(ngModel)]="notes"></textarea>
+          </mat-form-field>
+          @if (orderId()) {
+            <mat-button-toggle-group [value]="status()" (change)="status.set($event.value)" aria-label="Estado">
+              <mat-button-toggle value="completado">Completado</mat-button-toggle>
+              <mat-button-toggle value="cancelado">Cancelado</mat-button-toggle>
+            </mat-button-toggle-group>
+          }
+        </div>
+      </div>
+
+      <!-- ============================ RESUMEN ============================ -->
+      <aside class="side">
+        @if (ticketUrl() && showTicket()) {
+          <div class="card ticket">
+            <div class="card-title">
+              Captura
+              <span class="spacer"></span>
+              <button mat-icon-button (click)="showTicket.set(false)" aria-label="Ocultar captura"><mat-icon>visibility_off</mat-icon></button>
+            </div>
+            <a [href]="ticketUrl()" target="_blank"><img [src]="ticketUrl()" alt="Captura del ticket" /></a>
+          </div>
+        }
+
+        <div class="card summary">
+          <div class="card-title">
+            Resumen
+            @if (channel(); as c) {
+              <span class="spacer"></span>
+              <app-channel [name]="c.name" [hex]="c.color" />
+            }
+          </div>
+
+          @if (totals(); as t) {
+            <div class="sum-row"><span>Productos</span><span class="num">{{ t.gross_amount | money }}</span></div>
+            @if (t.discount_store) {
+              <div class="sum-row"><span>Descuento que pagas</span><span class="num neg">−{{ t.discount_store | money }}</span></div>
+            }
+            <div class="sum-row strong"><span>Venta neta</span><span class="num">{{ t.net_sale | money }}</span></div>
+            <div class="divider"></div>
+            <div class="sum-row"><span>IVA ({{ t.iva_rate | pct }})</span><span class="num">−{{ t.iva_amount | money }}</span></div>
+            <div class="sum-row"><span>Comisión ({{ t.commission_pct | pct }})</span><span class="num">−{{ t.commission_amount | money }}</span></div>
+            <div class="sum-row"><span>ISR retenido ({{ t.isr_ret_pct | pct: 1 }})</span><span class="num">−{{ t.isr_ret_amount | money }}</span></div>
+            <div class="sum-row"><span>Costo de producción</span><span class="num">−{{ t.cost_amount | money }}</span></div>
+            <div class="profit" [class.loss]="t.profit_amount < 0">
+              <span>Utilidad real</span>
+              <strong>{{ t.profit_amount | money }}</strong>
+              <span class="margin">{{ t.net_sale ? (t.profit_amount / t.net_sale | pct) : '—' }} de margen</span>
+            </div>
+            <div class="sum-row muted"><span>IVA retenido (se acredita)</span><span class="num">{{ t.iva_ret_amount | money }}</span></div>
+            <div class="sum-row"><span>Depósito esperado</span><span class="num">{{ t.payout_amount | money }}</span></div>
+            @if (reportedPayout() !== null) {
+              <div class="sum-row muted"><span>Ganancia según el ticket</span><span class="num">{{ reportedPayout() | money }}</span></div>
+            }
+          } @else {
+            <div class="muted">Elige canal y productos para ver la utilidad.</div>
+          }
+
+          <div class="actions">
+            <button mat-flat-button class="save" [disabled]="!canSave()" (click)="save(false)">
+              <mat-icon>check</mat-icon> {{ orderId() ? 'Guardar cambios' : 'Guardar venta' }}
+            </button>
+            @if (!orderId()) {
+              <button mat-stroked-button [disabled]="!canSave()" (click)="save(true)"><mat-icon>add</mat-icon> Guardar y registrar otra</button>
+            }
+            <div class="muted small center">⌘ / Ctrl + Enter para guardar</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  }
+</div>

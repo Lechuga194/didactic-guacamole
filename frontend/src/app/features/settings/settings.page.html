@@ -1,0 +1,246 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Configuración</h1>
+      <div class="subtitle">Parámetros de costeo, canales de venta, gastos fijos y respaldos</div>
+    </div>
+  </div>
+
+  <mat-tab-group [selectedIndex]="tabIndex()" animationDuration="150ms">
+    <!-- ==================== GENERAL ==================== -->
+    <mat-tab label="General">
+      @if (settings(); as s) {
+        <div class="card tab-card">
+          <div class="grid grid-3">
+            <mat-form-field appearance="outline">
+              <mat-label>Nombre del negocio</mat-label>
+              <input matInput [(ngModel)]="s.business_name" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Margen de utilidad objetivo</mat-label>
+              <input matInput type="number" min="0" max="90" [ngModel]="pctOf(s.target_margin_pct)" (ngModelChange)="setPct($any(s), 'target_margin_pct', $event)" />
+              <span matTextSuffix>%</span>
+              <mat-hint>Utilidad real / precio de venta. Se usa para el precio sugerido.</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>IVA</mat-label>
+              <input matInput type="number" min="0" max="50" [ngModel]="pctOf(s.iva_rate)" (ngModelChange)="setPct($any(s), 'iva_rate', $event)" />
+              <span matTextSuffix>%</span>
+              <mat-hint>Los precios se capturan con IVA incluido</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Food cost objetivo</mat-label>
+              <input matInput type="number" min="0" max="90" [ngModel]="pctOf(s.food_cost_target_pct)" (ngModelChange)="setPct($any(s), 'food_cost_target_pct', $event)" />
+              <span matTextSuffix>%</span>
+              <mat-hint>Referencia: costo / precio</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Redondear precio sugerido a múltiplos de</mat-label>
+              <span matTextPrefix>$&nbsp;</span>
+              <input matInput type="number" min="0" [(ngModel)]="s.price_rounding" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Respaldos a conservar</mat-label>
+              <input matInput type="number" min="1" max="365" [(ngModel)]="s.backup_keep" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Meta diaria de venta neta</mat-label>
+              <span matTextPrefix>$&nbsp;</span>
+              <input matInput type="number" min="0" [(ngModel)]="s.daily_sales_goal" />
+              <mat-hint>0 = sin meta</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Meta diaria de utilidad</mat-label>
+              <span matTextPrefix>$&nbsp;</span>
+              <input matInput type="number" min="0" [(ngModel)]="s.daily_profit_goal" />
+              <mat-hint>0 = sin meta</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="actions">
+            <button mat-flat-button (click)="saveGeneral()"><mat-icon>save</mat-icon> Guardar parámetros</button>
+          </div>
+        </div>
+      }
+    </mat-tab>
+
+    <!-- ==================== CANALES ==================== -->
+    <mat-tab label="Canales y retenciones">
+      <div class="card tab-card">
+        <p class="secondary">
+          Régimen de plataformas digitales: la plataforma retiene ISR sobre la base sin IVA y una parte del IVA.
+          La retención de IVA se acredita en tu declaración mensual (no es gasto); la de ISR se descuenta de la utilidad.
+          Valores por defecto: ISR 2.5% (reforma 2026) e IVA 50% — <strong>confírmalos con tu contador</strong>.
+        </p>
+        @for (c of channels(); track $index) {
+          <div class="channel">
+            <div class="row">
+              <span class="swatch" [style.background]="c.color"></span>
+              <mat-form-field appearance="outline" class="dense name">
+                <mat-label>Nombre</mat-label>
+                <input matInput [(ngModel)]="c.name" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="dense pct">
+                <mat-label>Comisión</mat-label>
+                <input matInput type="number" [ngModel]="pctOf(c.commission_pct)" (ngModelChange)="setPct($any(c), 'commission_pct', $event)" />
+                <span matTextSuffix>%</span>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="dense pct">
+                <mat-label>ISR retenido</mat-label>
+                <input matInput type="number" step="0.1" [ngModel]="pctOf(c.isr_ret_pct)" (ngModelChange)="setPct($any(c), 'isr_ret_pct', $event)" />
+                <span matTextSuffix>%</span>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="dense pct">
+                <mat-label>IVA retenido</mat-label>
+                <input matInput type="number" [ngModel]="pctOf(c.iva_ret_pct)" (ngModelChange)="setPct($any(c), 'iva_ret_pct', $event)" />
+                <span matTextSuffix>% del IVA</span>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="dense pct">
+                <mat-label>Margen objetivo</mat-label>
+                <input matInput type="number" placeholder="General" [ngModel]="pctOf(c.target_margin_pct)" (ngModelChange)="setPct($any(c), 'target_margin_pct', $event)" />
+                <span matTextSuffix>%</span>
+              </mat-form-field>
+            </div>
+            <div class="row">
+              <span class="muted">Color:</span>
+              @for (p of palette; track p) {
+                <button class="color" [style.background]="p" [class.on]="c.color === p" (click)="c.color = p" [attr.aria-label]="'Color ' + p"></button>
+              }
+              <mat-slide-toggle [checked]="!!c.is_platform" (change)="c.is_platform = $event.checked ? 1 : 0">Es plataforma</mat-slide-toggle>
+              <mat-slide-toggle [checked]="!!c.active" (change)="c.active = $event.checked ? 1 : 0">Activo</mat-slide-toggle>
+              <span class="spacer"></span>
+              <button mat-button class="danger" (click)="deleteChannel(c)"><mat-icon>delete</mat-icon></button>
+              <button mat-stroked-button (click)="saveChannel(c)" [disabled]="!c.name.trim()"><mat-icon>save</mat-icon> Guardar</button>
+            </div>
+          </div>
+        }
+        <button mat-button (click)="addChannel()"><mat-icon>add</mat-icon> Agregar canal</button>
+        <p class="muted small">Los colores vienen de una paleta probada para daltonismo; en ese orden se distinguen bien entre sí.</p>
+      </div>
+    </mat-tab>
+
+    <!-- ==================== GASTOS FIJOS ==================== -->
+    <mat-tab label="Gastos fijos">
+      <div class="card tab-card">
+        <p class="secondary">
+          Renta, gas, luz, agua, internet, sueldos, software, contador… Con ellos el dashboard calcula tu punto de equilibrio:
+          cuántos pedidos al día necesitas para no perder.
+        </p>
+        <table class="simple">
+          <thead>
+            <tr>
+              <th>Concepto</th>
+              <th class="num">Monto</th>
+              <th>Frecuencia</th>
+              <th>Activo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of expenses(); track $index) {
+              <tr>
+                <td><input class="cell-in wide" [(ngModel)]="e.name" placeholder="Ej. Renta" /></td>
+                <td class="num"><input class="cell-in num" type="number" min="0" [(ngModel)]="e.amount" /></td>
+                <td>
+                  <select class="cell-in" [(ngModel)]="e.frequency">
+                    @for (f of frequencies; track f) {
+                      <option [value]="f">{{ f }}</option>
+                    }
+                  </select>
+                </td>
+                <td><mat-slide-toggle [checked]="!!e.active" (change)="e.active = $event.checked ? 1 : 0" /></td>
+                <td class="num nowrap">
+                  <button mat-icon-button (click)="saveExpense(e)" matTooltip="Guardar" aria-label="Guardar"><mat-icon>save</mat-icon></button>
+                  <button mat-icon-button (click)="deleteExpense(e)" matTooltip="Eliminar" aria-label="Eliminar"><mat-icon>delete</mat-icon></button>
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>Total mensual estimado</td>
+              <td class="num">{{ monthly() | money }}</td>
+              <td colspan="3" class="muted">≈ {{ monthly() / 30 | money }} por día</td>
+            </tr>
+          </tfoot>
+        </table>
+        <button mat-button (click)="addExpense()"><mat-icon>add</mat-icon> Agregar gasto</button>
+      </div>
+    </mat-tab>
+
+    <!-- ==================== APARIENCIA ==================== -->
+    <mat-tab label="Apariencia">
+      <div class="card tab-card">
+        <p class="secondary">Elige el tema de la app. Se guarda en este navegador.</p>
+        <div class="themes">
+          @for (t of ui.themes; track t.id) {
+            <button type="button" class="theme-card" [class.selected]="ui.theme() === t.id" (click)="ui.setTheme(t.id)" [attr.aria-pressed]="ui.theme() === t.id">
+              <div class="mock" [style.background]="t.preview[0]">
+                <div class="mock-nav" [style.background]="t.preview[3]">
+                  <span class="mock-logo" [style.background]="t.preview[2]"><mat-icon>{{ t.icon }}</mat-icon></span>
+                  <span class="mock-line" [style.background]="t.preview[2]"></span>
+                  <span class="mock-line short"></span>
+                  <span class="mock-line short"></span>
+                </div>
+                <div class="mock-body">
+                  <div class="mock-hero" [style.background]="t.preview[2]"></div>
+                  <div class="mock-cards">
+                    <span [style.background]="t.preview[1]"></span>
+                    <span [style.background]="t.preview[1]"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="theme-info">
+                <div class="theme-name">
+                  {{ t.name }}
+                  @if (ui.theme() === t.id) {
+                    <mat-icon>check_circle</mat-icon>
+                  }
+                </div>
+                <div class="muted small">{{ t.description }}</div>
+              </div>
+            </button>
+          }
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- ==================== DATOS ==================== -->
+    <mat-tab label="Respaldos y exportación">
+      <div class="grid grid-2 tab-grid">
+        <div class="card">
+          <div class="card-title"><mat-icon>table_view</mat-icon> Exportar a Excel</div>
+          <p class="secondary">Ingredientes, recetas con costo, precios por canal, pedidos y productos vendidos del periodo.</p>
+          <div class="row">
+            <mat-form-field appearance="outline" class="dense">
+              <mat-label>Desde</mat-label>
+              <input matInput type="date" [(ngModel)]="exportFrom" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="dense">
+              <mat-label>Hasta</mat-label>
+              <input matInput type="date" [(ngModel)]="exportTo" />
+            </mat-form-field>
+          </div>
+          <a mat-flat-button [href]="exportUrl()" download><mat-icon>download</mat-icon> Descargar Excel</a>
+        </div>
+        <div class="card">
+          <div class="card-title"><mat-icon>backup</mat-icon> Respaldos de la base de datos</div>
+          <p class="secondary">
+            Se crea uno automático al día al iniciar la app, en <code>backend/data/backups</code>. Para restaurar, detén la app y copia
+            el respaldo sobre <code>backend/data/cocina.sqlite</code>.
+          </p>
+          <button mat-stroked-button (click)="backup()"><mat-icon>add</mat-icon> Respaldar ahora</button>
+          <table class="simple backups">
+            <tbody>
+              @for (b of backups().slice(0, 10); track b.file) {
+                <tr>
+                  <td>{{ b.file }}</td>
+                  <td class="num muted">{{ size(b.size) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

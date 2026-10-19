@@ -1,0 +1,208 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>{{ isToday() ? 'Hoy' : 'Resumen del día' }}</h1>
+      <div class="subtitle">{{ title() }}</div>
+    </div>
+    <div class="row nav-days">
+      <button mat-icon-button (click)="shift(-1)" matTooltip="Día anterior" aria-label="Día anterior"><mat-icon>chevron_left</mat-icon></button>
+      <button mat-stroked-button [disabled]="isToday()" (click)="date.set(today())">Hoy</button>
+      <button mat-icon-button (click)="shift(1)" [disabled]="isToday()" matTooltip="Día siguiente" aria-label="Día siguiente">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+    <span class="spacer"></span>
+    <a mat-stroked-button routerLink="/venta/nueva" [queryParams]="{ captura: 1 }">
+      <mat-icon>document_scanner</mat-icon> Subir captura
+    </a>
+    <a mat-flat-button routerLink="/venta/nueva"><mat-icon>add</mat-icon> Registrar venta</a>
+  </div>
+
+  @if (loading() && !data()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (data(); as s) {
+    <div class="grid grid-kpi">
+      <app-kpi
+        [hero]="true"
+        icon="payments"
+        label="Venta neta"
+        [value]="money(s.totals.net_sale)"
+        [deltaPct]="dNet()"
+        deltaLabel="vs semana pasada"
+        [goal]="s.goals.sales"
+        [current]="s.totals.net_sale"
+        help="Lo que pagaron los clientes por la comida, ya con descuentos de tienda (incluye IVA)."
+      />
+      <app-kpi
+        icon="savings"
+        label="Utilidad real"
+        [value]="money(s.totals.profit_amount)"
+        [negative]="s.totals.profit_amount < 0"
+        [deltaPct]="dProfit()"
+        deltaLabel="vs semana pasada"
+        [goal]="s.goals.profit"
+        [current]="s.totals.profit_amount"
+        help="Venta neta menos IVA, comisiones, ISR retenido y costo de producción (insumos + empaque). No incluye gastos fijos."
+      />
+      <app-kpi
+        icon="receipt_long"
+        label="Pedidos"
+        [value]="s.totals.orders + ''"
+        [sub]="s.totals.units + ' productos · ticket ' + money(s.totals.avg_ticket)"
+      />
+      <app-kpi
+        icon="percent"
+        label="Margen real"
+        [value]="pct(s.totals.margin_pct)"
+        [negative]="s.totals.margin_pct < 0"
+        sub="Utilidad / venta neta"
+      />
+      <app-kpi
+        icon="storefront"
+        label="Comisiones"
+        [value]="money(s.totals.commission_amount)"
+        [sub]="pct(s.totals.net_sale ? s.totals.commission_amount / s.totals.net_sale : 0) + ' de la venta'"
+      />
+      <app-kpi
+        icon="account_balance"
+        label="Depósito esperado"
+        [value]="money(s.totals.payout_amount)"
+        sub="Neto de comisiones y retenciones"
+        help="Lo que las plataformas deberían depositarte: venta neta - comisión - ISR retenido - IVA retenido."
+      />
+    </div>
+
+    @if (!s.totals.orders) {
+      <div class="card empty-day">
+        <mat-icon>ramen_dining</mat-icon>
+        <h2>{{ isToday() ? 'Aún no hay ventas hoy' : 'Sin ventas este día' }}</h2>
+        <p class="secondary">Registra un pedido a mano o sube la captura del ticket de DiDi o Uber.</p>
+        <div class="row center">
+          <a mat-stroked-button routerLink="/venta/nueva" [queryParams]="{ captura: 1 }"><mat-icon>document_scanner</mat-icon> Subir captura</a>
+          <a mat-flat-button routerLink="/venta/nueva"><mat-icon>add</mat-icon> Registrar venta</a>
+        </div>
+      </div>
+    } @else {
+      <div class="card split-card">
+        <div class="card-title">¿A dónde se va cada peso que vendes?</div>
+        <div class="split-bar" role="img" aria-label="Reparto de la venta neta">
+          @for (p of split(); track p.label) {
+            @if (p.pct > 0) {
+              <div class="seg" [style.flex-grow]="p.pct" [style.background]="p.color" [matTooltip]="p.label + ': ' + money(p.value) + ' (' + pct(p.pct) + ')'"></div>
+            }
+          }
+        </div>
+        <div class="split-legend">
+          @for (p of split(); track p.label) {
+            <div class="item">
+              <span class="dot" [style.background]="p.color"></span>
+              <span class="secondary">{{ p.label }}</span>
+              <strong>{{ p.value | money }}</strong>
+              <span class="muted">{{ p.pct | pct }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title">Por canal</div>
+          <table class="simple">
+            <thead>
+              <tr>
+                <th>Canal</th>
+                <th class="num">Pedidos</th>
+                <th class="num">Venta neta</th>
+                <th class="num">Comisión</th>
+                <th class="num">Utilidad</th>
+                <th class="num">Margen</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of s.by_channel; track c.channel_id) {
+                <tr>
+                  <td><app-channel [name]="c.channel_name" [hex]="c.color" /></td>
+                  <td class="num">{{ c.orders }}</td>
+                  <td class="num">{{ c.net_sale | money }}</td>
+                  <td class="num">{{ c.commission_amount | money }}</td>
+                  <td class="num" [class.neg]="c.profit_amount < 0">{{ c.profit_amount | money }}</td>
+                  <td class="num" [class.neg]="c.margin_pct < 0">{{ c.margin_pct | pct }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Lo más vendido</div>
+          <div class="top-list">
+            @for (p of s.top_products; track p.name; let i = $index) {
+              <div class="top-item">
+                <span class="rank">{{ i + 1 }}</span>
+                <div class="grow">
+                  <div class="name">{{ p.name }}</div>
+                  <div class="muted small">{{ p.category }}</div>
+                </div>
+                <div class="num">
+                  <div><strong>{{ p.units }}</strong> <span class="muted">uds</span></div>
+                  <div class="small" [class.neg]="p.profit < 0" [class.pos]="p.profit >= 0">{{ p.profit | money }}</div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Ventas por hora</div>
+        <app-chart [config]="hourChart()" [height]="240" label="Venta neta y utilidad por hora del día" />
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Pedidos del día
+          <span class="spacer"></span>
+          <a mat-button routerLink="/ventas">Ver todas las ventas</a>
+        </div>
+        <div class="table-wrap">
+          <table class="simple orders">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Canal</th>
+                <th>Productos</th>
+                <th class="num">Venta neta</th>
+                <th class="num">Costo</th>
+                <th class="num">Comisión</th>
+                <th class="num">Utilidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (o of s.orders; track o.id) {
+                <tr class="clickable" [class.cancelled]="o.status === 'cancelado'" (click)="open(o.id)">
+                  <td>{{ o.ordered_at.slice(11) }}</td>
+                  <td><app-channel [name]="o.channel_name" [hex]="o.channel_color" /></td>
+                  <td class="items">
+                    {{ o.items_summary }}
+                    @if (o.status === 'cancelado') {
+                      <span class="status perdida">Cancelado</span>
+                    }
+                    @if (o.source === 'ocr') {
+                      <mat-icon class="src" matTooltip="Registrado desde captura">document_scanner</mat-icon>
+                    }
+                  </td>
+                  <td class="num">{{ o.net_sale | money }}</td>
+                  <td class="num">{{ o.cost_amount | money }}</td>
+                  <td class="num">{{ o.commission_amount | money }}</td>
+                  <td class="num" [class.neg]="o.profit_amount < 0" [class.pos]="o.profit_amount >= 0">{{ o.profit_amount | money }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</div>

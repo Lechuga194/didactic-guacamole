@@ -1,0 +1,203 @@
+<div class="page">
+  <div class="page-header">
+    <a mat-icon-button routerLink="/recetas" aria-label="Volver"><mat-icon>arrow_back</mat-icon></a>
+    <div>
+      <h1>{{ recipeId() ? name || 'Receta' : 'Nueva receta' }}</h1>
+      <div class="subtitle">{{ kindLabel[kind()] }}</div>
+    </div>
+    <span class="spacer"></span>
+    @if (recipeId()) {
+      <button mat-stroked-button (click)="duplicate()"><mat-icon>content_copy</mat-icon> Duplicar</button>
+      <button mat-stroked-button class="danger" (click)="remove_()"><mat-icon>delete</mat-icon> Eliminar</button>
+    }
+    <button mat-flat-button (click)="save()" [disabled]="saving()"><mat-icon>save</mat-icon> Guardar</button>
+  </div>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  } @else {
+    <div class="layout">
+      <div class="main">
+        <div class="card">
+          <div class="row">
+            <mat-form-field appearance="outline" class="grow">
+              <mat-label>Nombre</mat-label>
+              <input matInput [(ngModel)]="name" required />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Categoría</mat-label>
+              <input matInput [(ngModel)]="category" [matAutocomplete]="cats" />
+              <mat-autocomplete #cats="matAutocomplete">
+                @for (c of categories(); track c) {
+                  <mat-option [value]="c">{{ c }}</mat-option>
+                }
+              </mat-autocomplete>
+            </mat-form-field>
+          </div>
+          <div class="row">
+            <mat-button-toggle-group [value]="kind()" (change)="kind.set($event.value)" aria-label="Tipo de receta">
+              <mat-button-toggle value="producto_final">Producto final</mat-button-toggle>
+              <mat-button-toggle value="preparacion">Preparación</mat-button-toggle>
+              <mat-button-toggle value="combo">Combo</mat-button-toggle>
+            </mat-button-toggle-group>
+            <mat-form-field appearance="outline" class="yield">
+              <mat-label>Rinde</mat-label>
+              <input matInput type="number" min="0.001" [ngModel]="yieldQty()" (ngModelChange)="yieldQty.set($event)" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="unit">
+              <mat-label>Unidad</mat-label>
+              <mat-select [value]="yieldUnit()" (selectionChange)="yieldUnit.set($event.value)">
+                <mat-option value="pieza">pieza(s)</mat-option>
+                <mat-option value="g">gramos</mat-option>
+                <mat-option value="ml">mililitros</mat-option>
+                <mat-option value="oz">onzas</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-slide-toggle [(ngModel)]="active">Activa</mat-slide-toggle>
+          </div>
+          <div class="muted small hint">
+            @if (kind() === 'preparacion') {
+              Una preparación (salsa, jarabe, masa…) se usa dentro de otras recetas por {{ yieldUnit() }}. Indica cuánto rinde el lote completo.
+            } @else if (kind() === 'combo') {
+              Un combo se vende como paquete. Sus componentes definen el costo de referencia; al registrar la venta eliges los productos reales.
+            } @else {
+              Incluye también el empaque y desechables (contenedor, bolsa, servilleta, etiqueta…) para conocer el costo real.
+            }
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Componentes</div>
+          <mat-form-field appearance="outline" class="full dense">
+            <mat-icon matPrefix>add</mat-icon>
+            <mat-label>Agregar ingrediente, empaque o preparación</mat-label>
+            <input matInput [(ngModel)]="search" (ngModelChange)="searchTerm.set($event)" [matAutocomplete]="opts" />
+            <mat-autocomplete #opts="matAutocomplete" (optionSelected)="addOption($event)" [displayWith]="optionLabel">
+              @for (o of filteredOptions(); track o.type + o.id) {
+                <mat-option [value]="o">
+                  <div class="opt">
+                    <span>{{ o.name }}</span>
+                    <span class="muted">{{ o.hint }} · {{ o.unit_cost | unitCost }}/{{ o.unit }}</span>
+                  </div>
+                </mat-option>
+              }
+            </mat-autocomplete>
+          </mat-form-field>
+
+          <table class="simple comps">
+            <thead>
+              <tr>
+                <th>Componente</th>
+                <th class="num">Cantidad</th>
+                <th class="num">Costo unitario</th>
+                <th class="num">Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of rows(); track r.key; let first = $first; let last = $last) {
+                <tr>
+                  <td>
+                    <div>
+                      @if (r.type === 'receta') {
+                        <a [routerLink]="['/recetas', r.ref_id]" class="sub-link">{{ r.name }}</a>
+                      } @else {
+                        {{ r.name }}
+                      }
+                    </div>
+                    <div class="muted small">{{ r.hint }}@if (r.packaging) { · 📦 }</div>
+                  </td>
+                  <td class="num">
+                    <input class="qty-in" type="number" min="0" step="any" [ngModel]="r.quantity" (ngModelChange)="setQty(r.key, $event)" [attr.aria-label]="'Cantidad de ' + r.name" />
+                    <span class="muted unit-l">{{ r.unit }}</span>
+                  </td>
+                  <td class="num muted">{{ r.unit_cost | unitCost }}</td>
+                  <td class="num"><strong>{{ r.subtotal | money }}</strong></td>
+                  <td class="num actions">
+                    <button mat-icon-button (click)="move(r.key, -1)" [disabled]="first" aria-label="Subir"><mat-icon>arrow_upward</mat-icon></button>
+                    <button mat-icon-button (click)="move(r.key, 1)" [disabled]="last" aria-label="Bajar"><mat-icon>arrow_downward</mat-icon></button>
+                    <button mat-icon-button (click)="remove(r.key)" aria-label="Quitar"><mat-icon>close</mat-icon></button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5" class="empty">Agrega los componentes con el buscador de arriba</td></tr>
+              }
+            </tbody>
+            @if (rows().length) {
+              <tfoot>
+                <tr>
+                  <td colspan="3">Costo del lote ({{ yieldQty() }} {{ yieldUnit() }})</td>
+                  <td class="num">{{ total() | money }}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            }
+          </table>
+        </div>
+
+        @if (sellable() && groups().length) {
+          <div class="card">
+            <div class="card-title">Modificadores disponibles</div>
+            <div class="card-subtitle">Se muestran al registrar una venta de este producto</div>
+            <mat-chip-listbox [multiple]="true" aria-label="Grupos de modificadores">
+              @for (g of groups(); track g.id) {
+                <mat-chip-option [selected]="groupIds().includes(g.id)" (click)="toggleGroup(g.id)">{{ g.name }}</mat-chip-option>
+              }
+            </mat-chip-listbox>
+          </div>
+        }
+
+        <div class="card">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Notas / procedimiento</mat-label>
+            <textarea matInput rows="3" [(ngModel)]="notes"></textarea>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="card cost-card">
+          <div class="muted">Costo por {{ yieldUnit() }}</div>
+          <div class="big">{{ unitCost() | unitCost }}</div>
+          <div class="cost-lines">
+            <div><span>Insumos</span><span>{{ (total() - packaging()) / (yieldQty() || 1) | money }}</span></div>
+            <div><span>Empaque y desechables</span><span>{{ packaging() / (yieldQty() || 1) | money }}</span></div>
+          </div>
+        </div>
+
+        @if (sellable()) {
+          <div class="card">
+            <div class="card-title">Precio por canal</div>
+            @for (p of priceRows(); track p.ch.id) {
+              <div class="price-line">
+                <app-channel [name]="p.ch.name" [hex]="p.ch.color" />
+                <span class="spacer"></span>
+                <span class="cur">$</span>
+                <input class="price-in" type="number" min="0" [ngModel]="p.price" (ngModelChange)="setPrice(p.ch.id, $event)" [attr.aria-label]="'Precio en ' + p.ch.name" />
+              </div>
+              <div class="price-meta">
+                @if (p.price !== null) {
+                  <span [class.neg]="(p.profit ?? 0) < 0">Utilidad {{ p.profit | money }} · {{ p.margin | pct }}</span>
+                } @else {
+                  <span class="muted">Sin precio</span>
+                }
+                @if (p.suggested !== null && (p.price === null || p.suggested > p.price)) {
+                  <button class="suggest" (click)="setPrice(p.ch.id, p.suggested)">usar {{ p.suggested | money }} ({{ p.target | pct }})</button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (detail()?.used_in?.length) {
+          <div class="card">
+            <div class="card-title">Se usa en</div>
+            @for (u of detail()!.used_in; track u.id) {
+              <a class="pill" [routerLink]="['/recetas', u.id]">{{ u.name }}</a>
+            }
+          </div>
+        }
+      </aside>
+    </div>
+  }
+</div>

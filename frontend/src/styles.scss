@@ -1,0 +1,456 @@
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+  color-scheme: light;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$orange-palette,
+        tertiary: mat.$azure-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+
+  // Fichas, tarjetas y gráficas
+  --page-bg: #f6f4f1;
+  --card-bg: #fffefc;
+  --card-border: rgba(11, 11, 11, 0.08);
+  --text-primary: #1b1a18;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-seq: #2a78d6;
+  --viz-seq-weak: #cde2fb;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --critical-text: #b42323;
+  --hero-grad: linear-gradient(135deg, #c2410c 0%, #ea580c 55%, #f59e0b 100%);
+  --hero-text: #ffffff;
+  --card-radius: 16px;
+  --page-pattern: none;
+  // Barra lateral
+  --nav-bg: var(--card-bg);
+  --nav-text: var(--text-primary);
+  --nav-muted: var(--text-muted);
+  --nav-active-bg: color-mix(in srgb, var(--mat-sys-primary) 14%, transparent);
+  --nav-active-text: var(--mat-sys-primary);
+  --logo-bg: var(--hero-grad);
+  --logo-fg: #ffffff;
+}
+
+// ============================ TEMAS ============================
+
+// ---------- Tonos oscuros ----------
+html.theme-oscuro {
+  color-scheme: dark;
+  --page-bg: #0f0f0e;
+  --card-bg: #1a1a19;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-seq: #3987e5;
+  --viz-seq-weak: #184f95;
+  --good-text: #0ca30c;
+  --critical-text: #e66767;
+  --hero-grad: linear-gradient(135deg, #7c2d12 0%, #9a3412 55%, #b45309 100%);
+  --nav-bg: #141413;
+}
+
+// ---------- Tonos blancos ----------
+html.theme-claro {
+  --mat-sys-primary: #3c4654;
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #e8ebef;
+  --mat-sys-on-primary-container: #1d232b;
+  --mat-sys-secondary-container: #eef0f3;
+  --mat-sys-on-secondary-container: #1d232b;
+  --page-bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --card-border: rgba(16, 24, 40, 0.07);
+  --text-primary: #1d232b;
+  --text-secondary: #4b5563;
+  --text-muted: #8a929c;
+  --viz-grid: #eceef1;
+  --viz-axis: #d5d9de;
+  --hero-grad: linear-gradient(135deg, #ffffff 0%, #f1f4f8 100%);
+  --hero-text: #1d232b;
+  --nav-bg: #ffffff;
+  --nav-active-bg: #eef1f5;
+  --nav-active-text: #1d232b;
+  --logo-bg: #1d232b;
+  --logo-fg: #ffffff;
+
+  .kpi.hero {
+    border: 1px solid var(--card-border) !important;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  }
+}
+
+// ---------- Sonic ----------
+html.theme-sonic {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$blue-palette,
+        tertiary: mat.$yellow-palette,
+      ),
+    )
+  );
+  --page-bg: #e6f0ff;
+  --card-bg: #ffffff;
+  --card-border: rgba(11, 63, 191, 0.12);
+  --text-primary: #0c1d4a;
+  --text-secondary: #39507f;
+  --text-muted: #7a8bb0;
+  --viz-grid: #dde6f7;
+  --viz-axis: #b9c7e6;
+  --hero-grad: linear-gradient(135deg, #0b3fbf 0%, #1e6bff 55%, #00a8ff 100%);
+  // Líneas de velocidad y anillos dorados
+  --page-pattern: repeating-linear-gradient(-14deg, transparent 0 58px, rgba(30, 107, 255, 0.06) 58px 61px),
+    radial-gradient(circle at 50% 50%, transparent 8px, rgba(255, 196, 0, 0.32) 9px 12px, transparent 13px);
+  --page-pattern-size: auto, 140px 140px;
+  --nav-bg: linear-gradient(180deg, #0b3fbf 0%, #0a2f8f 100%);
+  --nav-text: #ffffff;
+  --nav-muted: rgba(255, 255, 255, 0.65);
+  --nav-active-bg: rgba(255, 196, 0, 0.22);
+  --nav-active-text: #ffd23f;
+  --logo-bg: radial-gradient(circle, #0b3fbf 0 9px, #ffc400 10px 15px, #ff9f00 16px 20px);
+  --logo-fg: #ffffff;
+  --cta-bg: #e1251b;
+  --cta-fg: #ffffff;
+}
+
+// ---------- Gatos ----------
+html.theme-gatos {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$rose-palette,
+        tertiary: mat.$violet-palette,
+      ),
+    )
+  );
+  --page-bg: #fff6f0;
+  --card-bg: #fffdfb;
+  --card-border: rgba(224, 122, 154, 0.2);
+  --text-primary: #4a2a33;
+  --text-secondary: #7a5560;
+  --text-muted: #a88a92;
+  --viz-grid: #f4e3e0;
+  --viz-axis: #e6cdc9;
+  --card-radius: 22px;
+  --hero-grad: linear-gradient(135deg, #f6a6b8 0%, #f9c4a6 60%, #fbe2b6 100%);
+  --hero-text: #4a2333;
+  // Huellitas de gato
+  --page-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='%23e07a9a' fill-opacity='0.09'%3E%3Cellipse cx='30' cy='36' rx='9' ry='7'/%3E%3Ccircle cx='19' cy='25' r='3.6'/%3E%3Ccircle cx='26' cy='19' r='3.6'/%3E%3Ccircle cx='35' cy='19' r='3.6'/%3E%3Ccircle cx='42' cy='25' r='3.6'/%3E%3Cellipse cx='72' cy='78' rx='9' ry='7'/%3E%3Ccircle cx='61' cy='67' r='3.6'/%3E%3Ccircle cx='68' cy='61' r='3.6'/%3E%3Ccircle cx='77' cy='61' r='3.6'/%3E%3Ccircle cx='84' cy='67' r='3.6'/%3E%3C/g%3E%3C/svg%3E");
+  --page-pattern-size: 96px 96px;
+  --nav-bg: #fde9e1;
+  --nav-text: #4a2a33;
+  --nav-muted: #a07c86;
+  --nav-active-bg: rgba(224, 122, 154, 0.22);
+  --nav-active-text: #b03a62;
+  --logo-bg: linear-gradient(135deg, #f6a6b8, #f9c4a6);
+  --logo-fg: #4a2333;
+
+  // Orejitas de gato en la ficha principal
+  .kpi.hero {
+    position: relative;
+    overflow: visible !important;
+
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      top: -12px;
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-bottom: 16px solid #f6a6b8;
+    }
+
+    &::before {
+      left: 18px;
+    }
+
+    &::after {
+      left: 46px;
+    }
+  }
+}
+
+body {
+  background-color: var(--page-bg);
+  color: var(--text-primary);
+  font: var(--mat-sys-body-medium);
+  margin: 0;
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+// ---------- Utilidades de layout ----------
+.page {
+  padding: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+
+  h1 {
+    font: var(--mat-sys-headline-small);
+    margin: 0;
+  }
+
+  .subtitle {
+    color: var(--text-secondary);
+    font: var(--mat-sys-body-medium);
+  }
+
+  .spacer {
+    flex: 1;
+  }
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  padding: 20px;
+
+  > h2,
+  .card-title {
+    font: var(--mat-sys-title-medium);
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-subtitle {
+    color: var(--text-secondary);
+    font: var(--mat-sys-body-small);
+    margin: -8px 0 12px;
+  }
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.grid-kpi {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+}
+
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.secondary {
+  color: var(--text-secondary);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pos {
+  color: var(--good-text);
+}
+
+.neg {
+  color: var(--critical-text);
+}
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    display: block;
+    margin: 0 auto 8px;
+  }
+}
+
+// Punto de color + texto (identidad nunca sólo por color)
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+// Chips de estado (con ícono + texto)
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font: var(--mat-sys-label-medium);
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  &.ok {
+    background: color-mix(in srgb, var(--good) 14%, transparent);
+    color: var(--good-text);
+  }
+
+  &.bajo {
+    background: color-mix(in srgb, var(--warning) 22%, transparent);
+    color: var(--text-primary);
+  }
+
+  &.perdida {
+    background: color-mix(in srgb, var(--critical) 16%, transparent);
+    color: var(--critical-text);
+  }
+
+  &.sin_precio {
+    background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+    color: var(--text-secondary);
+  }
+}
+
+// Tablas de material más compactas y legibles
+table.mat-mdc-table {
+  background: transparent;
+  width: 100%;
+
+  th.mat-mdc-header-cell {
+    color: var(--text-secondary);
+    font: var(--mat-sys-label-large);
+    white-space: nowrap;
+  }
+
+  tr.mat-mdc-row:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+  }
+
+  tr.clickable {
+    cursor: pointer;
+  }
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+// Tabla ligera para resúmenes
+table.simple {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    text-align: left;
+    font: var(--mat-sys-label-medium);
+    color: var(--text-secondary);
+    padding: 8px;
+    border-bottom: 1px solid var(--viz-grid);
+    white-space: nowrap;
+  }
+
+  th.num {
+    text-align: right;
+  }
+
+  td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--viz-grid);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr.clickable {
+    cursor: pointer;
+
+    &:hover td {
+      background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+    }
+  }
+
+  tr.cancelled td {
+    opacity: 0.55;
+  }
+
+  tfoot td {
+    font-weight: 500;
+    border-top: 1px solid var(--viz-axis);
+  }
+}
+
+.full {
+  width: 100%;
+}
+
+mat-form-field.dense {
+  @include mat.form-field-density(-3);
+}
+
+.mat-mdc-snack-bar-container.snack-error {
+  --mat-snack-bar-container-color: #b42323;
+  --mat-snack-bar-supporting-text-color: #fff;
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 16px;
+  }
+
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
