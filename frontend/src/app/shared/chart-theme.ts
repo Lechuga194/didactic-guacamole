@@ -12,11 +12,20 @@ const DARK_STEP: Record<string, string> = {
   '#e87ba4': '#d55181',
   '#008300': '#008300',
   '#6250d6': '#9085e9',
-  '#e34948': '#e66767'
+  '#e34948': '#e66767',
 };
 
 /** Orden fijo de la paleta categórica (nunca se recicla: más series se agrupan en "Otros"). */
-export const CATEGORICAL = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
+export const CATEGORICAL = [
+  '#2a78d6',
+  '#eb6834',
+  '#1baf7a',
+  '#eda100',
+  '#e87ba4',
+  '#008300',
+  '#6250d6',
+  '#e34948',
+];
 
 export const seriesColor = (hex: string, dark: boolean): string =>
   dark ? DARK_STEP[hex.toLowerCase()] || hex : hex;
@@ -39,7 +48,14 @@ export const baseOptions = (money = true): ChartOptions => {
       legend: {
         position: 'top',
         align: 'start',
-        labels: { color: text, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14 }
+        labels: {
+          color: text,
+          usePointStyle: true,
+          pointStyle: 'circle',
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 14,
+        },
       },
       tooltip: {
         backgroundColor: cssVar('--card-bg'),
@@ -58,25 +74,25 @@ export const baseOptions = (money = true): ChartOptions => {
                 const v = ctx.chart.options.indexAxis === 'y' ? parsed.x : parsed.y;
                 const label = ctx.dataset.label ? `${ctx.dataset.label}: ` : '';
                 return `${label}${fmtMoney(typeof v === 'number' ? v : Number(ctx.raw))}`;
-              }
+              },
             }
-          : {}
-      }
+          : {},
+      },
     },
     scales: {
       x: {
         grid: { display: false },
         border: { color: cssVar('--viz-axis') },
-        ticks: { color: muted, maxRotation: 0, autoSkipPadding: 12 }
+        ticks: { color: muted, maxRotation: 0, autoSkipPadding: 12 },
       },
       y: {
         grid: { color: grid },
         border: { display: false },
         ticks: {
           color: muted,
-          callback: money ? (v) => fmtMoney(Number(v), true) : undefined
-        }
-      }
-    }
+          callback: money ? (v) => fmtMoney(Number(v), true) : undefined,
+        },
+      },
+    },
   } as ChartOptions;
 };

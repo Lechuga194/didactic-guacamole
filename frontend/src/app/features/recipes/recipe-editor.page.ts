@@ -7,15 +7,27 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import {
+  MatAutocompleteModule,
+  MatAutocompleteSelectedEvent,
+} from '@angular/material/autocomplete';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApiService } from '../../core/api.service';
 import { UiService } from '../../core/ui.service';
-import { AppSettings, Channel, Ingredient, ModifierGroup, RecipeDetail, RecipeKind, RecipeListRow, YieldUnit } from '../../core/models';
-import { KIND_LABEL, MoneyPipe, PctPipe, UnitCostPipe } from '../../core/format';
+import {
+  AppSettings,
+  Channel,
+  Ingredient,
+  ModifierGroup,
+  RecipeDetail,
+  RecipeKind,
+  RecipeListRow,
+  YieldUnit,
+} from '../../core/models';
+import { KIND_LABEL, MoneyPipe, OzHintPipe, PctPipe, UnitCostPipe } from '../../core/format';
 import { breakdown, suggestedPrice } from '../../core/pricing';
 import { ChannelBadgeComponent } from '../../shared/channel-badge.component';
 
@@ -57,10 +69,11 @@ let seq = 1;
     ChannelBadgeComponent,
     MoneyPipe,
     PctPipe,
-    UnitCostPipe
+    UnitCostPipe,
+    OzHintPipe,
   ],
   templateUrl: './recipe-editor.page.html',
-  styleUrl: './recipe-editor.page.scss'
+  styleUrl: './recipe-editor.page.scss',
 })
 export class RecipeEditorPage {
   private api = inject(ApiService);
@@ -106,7 +119,7 @@ export class RecipeEditorPage {
         name: i.name,
         unit: i.use_unit,
         unit_cost: i.unit_cost,
-        hint: i.category === 'empaque' ? 'Empaque' : 'Ingrediente'
+        hint: i.category === 'empaque' ? 'Empaque' : 'Ingrediente',
       }));
     const rec: Option[] = this.recipes()
       .filter((r) => r.id !== self && r.active)
@@ -116,19 +129,27 @@ export class RecipeEditorPage {
         name: r.name,
         unit: r.yield_unit,
         unit_cost: r.cost_unit,
-        hint: KIND_LABEL[r.kind]
+        hint: KIND_LABEL[r.kind],
       }));
-    return [...rec.filter((r) => r.hint === 'Preparación'), ...ing, ...rec.filter((r) => r.hint !== 'Preparación')];
+    return [
+      ...rec.filter((r) => r.hint === 'Preparación'),
+      ...ing,
+      ...rec.filter((r) => r.hint !== 'Preparación'),
+    ];
   });
   readonly filteredOptions = computed(() => {
     const t = this.norm(this.searchTerm());
-    return (t ? this.options().filter((o) => this.norm(o.name).includes(t)) : this.options()).slice(0, 50);
+    return (t ? this.options().filter((o) => this.norm(o.name).includes(t)) : this.options()).slice(
+      0,
+      50,
+    );
   });
 
   readonly rows = computed(() =>
     this.items().map((it) => {
       const opt = this.options().find((o) => o.type === it.type && o.id === it.ref_id);
-      const ing = it.type === 'ingrediente' ? this.ingredients().find((i) => i.id === it.ref_id) : undefined;
+      const ing =
+        it.type === 'ingrediente' ? this.ingredients().find((i) => i.id === it.ref_id) : undefined;
       const unitCost = opt?.unit_cost ?? 0;
       return {
         ...it,
@@ -137,12 +158,14 @@ export class RecipeEditorPage {
         hint: opt?.hint ?? '',
         unit_cost: unitCost,
         subtotal: unitCost * (Number(it.quantity) || 0),
-        packaging: ing?.category === 'empaque'
+        packaging: ing?.category === 'empaque',
       };
-    })
+    }),
   );
   readonly total = computed(() => this.rows().reduce((a, r) => a + r.subtotal, 0));
-  readonly packaging = computed(() => this.rows().reduce((a, r) => a + (r.packaging ? r.subtotal : 0), 0));
+  readonly packaging = computed(() =>
+    this.rows().reduce((a, r) => a + (r.packaging ? r.subtotal : 0), 0),
+  );
   readonly unitCost = computed(() => this.total() / (Number(this.yieldQty()) || 1));
   readonly sellable = computed(() => this.kind() !== 'preparacion');
 
@@ -159,7 +182,7 @@ export class RecipeEditorPage {
         profit: b?.profit ?? null,
         margin: b?.margin ?? null,
         suggested: suggestedPrice(this.unitCost(), ch, s.iva_rate, target, s.price_rounding),
-        target
+        target,
       };
     });
   });
@@ -178,7 +201,7 @@ export class RecipeEditorPage {
         this.api.ingredients(),
         this.api.recipes(),
         this.api.settings(),
-        this.api.modifierGroups()
+        this.api.modifierGroups(),
       ]);
       this.ingredients.set(ings);
       this.recipes.set(recs.recipes);
@@ -202,14 +225,16 @@ export class RecipeEditorPage {
             type: i.ingredient_id ? 'ingrediente' : 'receta',
             ref_id: (i.ingredient_id || i.sub_recipe_id) as number,
             quantity: i.quantity,
-            notes: i.notes || ''
-          }))
+            notes: i.notes || '',
+          })),
         );
         this.prices.set(Object.fromEntries(d.prices.map((p) => [p.channel_id, p.price])));
         this.groupIds.set(d.modifier_group_ids);
       } else {
         const k = (this.tipo() as RecipeKind) || 'producto_final';
-        this.kind.set(['preparacion', 'producto_final', 'combo'].includes(k) ? k : 'producto_final');
+        this.kind.set(
+          ['preparacion', 'producto_final', 'combo'].includes(k) ? k : 'producto_final',
+        );
         this.yieldUnit.set(k === 'preparacion' ? 'g' : 'pieza');
         this.yieldQty.set(k === 'preparacion' ? 1000 : 1);
       }
@@ -222,10 +247,15 @@ export class RecipeEditorPage {
 
   addOption(e: MatAutocompleteSelectedEvent): void {
     const o = e.option.value as Option;
-    this.items.set([...this.items(), { key: seq++, type: o.type, ref_id: o.id, quantity: o.unit === 'pieza' ? 1 : 0, notes: '' }]);
+    this.items.set([
+      ...this.items(),
+      { key: seq++, type: o.type, ref_id: o.id, quantity: o.unit === 'pieza' ? 1 : 0, notes: '' },
+    ]);
     this.search = '';
     this.searchTerm.set('');
-    setTimeout(() => (document.querySelector('.qty-in:last-of-type') as HTMLInputElement | null)?.focus());
+    setTimeout(() =>
+      (document.querySelector('.qty-in:last-of-type') as HTMLInputElement | null)?.focus(),
+    );
   }
 
   setQty(key: number, value: number): void {
@@ -271,7 +301,8 @@ export class RecipeEditorPage {
         {
           name: this.name.trim(),
           kind: this.kind(),
-          category: this.category.trim() || (this.kind() === 'preparacion' ? 'Preparaciones' : null),
+          category:
+            this.category.trim() || (this.kind() === 'preparacion' ? 'Preparaciones' : null),
           yield_qty: Number(this.yieldQty()) || 1,
           yield_unit: this.yieldUnit(),
           notes: this.notes.trim() || null,
@@ -280,16 +311,16 @@ export class RecipeEditorPage {
             ingredient_id: i.type === 'ingrediente' ? i.ref_id : null,
             sub_recipe_id: i.type === 'receta' ? i.ref_id : null,
             quantity: Number(i.quantity),
-            notes: i.notes || null
+            notes: i.notes || null,
           })),
           modifier_group_ids: this.groupIds(),
           prices: this.sellable()
             ? Object.entries(this.prices())
                 .filter(([, p]) => p !== null && p !== undefined && !Number.isNaN(p))
                 .map(([ch, p]) => ({ channel_id: Number(ch), price: Number(p) }))
-            : []
+            : [],
         },
-        this.recipeId() ?? undefined
+        this.recipeId() ?? undefined,
       );
       this.ui.ok('Receta guardada');
       if (!this.recipeId()) this.router.navigate(['/recetas', res.id]);
@@ -322,7 +353,7 @@ export class RecipeEditorPage {
       title: 'Eliminar receta',
       message: `¿Eliminar "${this.name}"? Si ya tiene ventas registradas sólo se desactivará para conservar el historial.`,
       confirm: 'Eliminar',
-      danger: true
+      danger: true,
     });
     if (!ok) return;
     try {
@@ -334,11 +365,9 @@ export class RecipeEditorPage {
     }
   }
 
-  norm(s: string): string {
-    return s
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .toLowerCase();
+  norm(s: unknown): string {
+    // El autocompletado puede entregar el objeto elegido en lugar del texto
+    return (typeof s === 'string' ? s : '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
 
   optionLabel = (o: Option | null) => (o ? o.name : '');

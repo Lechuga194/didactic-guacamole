@@ -11,7 +11,13 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../core/api.service';
 import { UiService } from '../../core/ui.service';
-import { Channel, Promotion, PromotionAbsorber, PromotionType, RecipeListRow } from '../../core/models';
+import {
+  Channel,
+  Promotion,
+  PromotionAbsorber,
+  PromotionType,
+  RecipeListRow,
+} from '../../core/models';
 
 export const PROMO_TYPES: { value: PromotionType; label: string; valueLabel: string | null }[] = [
   { value: 'porcentaje', label: 'Porcentaje de descuento', valueLabel: '% de descuento' },
@@ -19,7 +25,7 @@ export const PROMO_TYPES: { value: PromotionType; label: string; valueLabel: str
   { value: '2x1', label: '2x1', valueLabel: null },
   { value: 'precio_especial', label: 'Precio especial', valueLabel: 'Precio final' },
   { value: 'producto_gratis', label: 'Producto gratis', valueLabel: null },
-  { value: 'otro', label: 'Otra (monto manual)', valueLabel: null }
+  { value: 'otro', label: 'Otra (monto manual)', valueLabel: null },
 ];
 
 @Component({
@@ -34,7 +40,7 @@ export const PROMO_TYPES: { value: PromotionType; label: string; valueLabel: str
     MatSelectModule,
     MatSliderModule,
     MatSlideToggleModule,
-    MatIconModule
+    MatIconModule,
   ],
   template: `
     <h2 mat-dialog-title>{{ promo ? 'Editar promoción' : 'Nueva promoción' }}</h2>
@@ -71,7 +77,9 @@ export const PROMO_TYPES: { value: PromotionType; label: string; valueLabel: str
         @if (absorbed() === 'compartido') {
           <div class="row">
             <span>Yo pago {{ share }}%</span>
-            <mat-slider min="0" max="100" step="5" class="grow"><input matSliderThumb [(ngModel)]="share" /></mat-slider>
+            <mat-slider min="0" max="100" step="5" class="grow"
+              ><input matSliderThumb [(ngModel)]="share"
+            /></mat-slider>
           </div>
         }
         <div class="row">
@@ -106,7 +114,9 @@ export const PROMO_TYPES: { value: PromotionType; label: string; valueLabel: str
     </mat-dialog-content>
     <mat-dialog-actions>
       @if (promo) {
-        <button mat-button class="danger" (click)="remove()"><mat-icon>delete</mat-icon> Eliminar</button>
+        <button mat-button class="danger" (click)="remove()">
+          <mat-icon>delete</mat-icon> Eliminar
+        </button>
       }
       <span class="spacer"></span>
       <button mat-button mat-dialog-close>Cancelar</button>
@@ -138,7 +148,7 @@ export const PROMO_TYPES: { value: PromotionType; label: string; valueLabel: str
     .spacer {
       flex: 1;
     }
-  `
+  `,
 })
 export class PromotionDialog {
   readonly data = inject<{ promo: Promotion | null; channels: Channel[] }>(MAT_DIALOG_DATA);
@@ -159,8 +169,12 @@ export class PromotionDialog {
   recipeIds: number[] = [...(this.promo?.recipe_ids ?? [])];
   active = (this.promo?.active ?? 1) === 1;
   readonly recipes = signal<RecipeListRow[]>([]);
-  readonly sellable = computed(() => this.recipes().filter((r) => r.kind !== 'preparacion' && r.active));
-  readonly valueLabel = computed(() => PROMO_TYPES.find((t) => t.value === this.type())?.valueLabel ?? null);
+  readonly sellable = computed(() =>
+    this.recipes().filter((r) => r.kind !== 'preparacion' && r.active),
+  );
+  readonly valueLabel = computed(
+    () => PROMO_TYPES.find((t) => t.value === this.type())?.valueLabel ?? null,
+  );
 
   constructor() {
     this.api.recipes().then((r) => this.recipes.set(r.recipes));
@@ -175,15 +189,20 @@ export class PromotionDialog {
           type: this.type(),
           value: this.valueLabel() ? Number(this.value) || 0 : 0,
           absorbed_by: absorbed,
-          store_share_pct: absorbed === 'tienda' ? 1 : absorbed === 'plataforma' ? 0 : (Number(this.share) || 0) / 100,
+          store_share_pct:
+            absorbed === 'tienda'
+              ? 1
+              : absorbed === 'plataforma'
+                ? 0
+                : (Number(this.share) || 0) / 100,
           channel_id: this.channelId,
           starts_on: this.startsOn || null,
           ends_on: this.endsOn || null,
           notes: null,
           active: this.active ? 1 : 0,
-          recipe_ids: this.recipeIds
+          recipe_ids: this.recipeIds,
         },
-        this.promo?.id
+        this.promo?.id,
       );
       this.ui.ok('Promoción guardada');
       this.ref.close(true);
@@ -194,7 +213,12 @@ export class PromotionDialog {
 
   async remove(): Promise<void> {
     if (!this.promo) return;
-    const ok = await this.ui.confirm({ title: 'Eliminar promoción', message: `¿Eliminar "${this.promo.name}"? Las ventas ya registradas conservan el descuento.`, confirm: 'Eliminar', danger: true });
+    const ok = await this.ui.confirm({
+      title: 'Eliminar promoción',
+      message: `¿Eliminar "${this.promo.name}"? Las ventas ya registradas conservan el descuento.`,
+      confirm: 'Eliminar',
+      danger: true,
+    });
     if (!ok) return;
     try {
       await this.api.deletePromotion(this.promo.id);

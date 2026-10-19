@@ -11,7 +11,9 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ApiService } from '../../core/api.service';
 import { UiService } from '../../core/ui.service';
 import { Ingredient, IngredientCostChange, PurchaseUnit } from '../../core/models';
-import { MoneyPipe } from '../../core/format';
+import { MoneyPipe, OzHintPipe } from '../../core/format';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { IngredientActions } from './ingredient-actions';
 
 @Component({
   selector: 'app-ingredient-dialog',
@@ -25,7 +27,9 @@ import { MoneyPipe } from '../../core/format';
     MatInputModule,
     MatIconModule,
     MatSlideToggleModule,
-    MoneyPipe
+    MatTooltipModule,
+    MoneyPipe,
+    OzHintPipe,
   ],
   template: `
     <h2 mat-dialog-title>{{ data ? 'Editar ingrediente' : 'Nuevo ingrediente' }}</h2>
@@ -45,17 +49,30 @@ import { MoneyPipe } from '../../core/format';
           <mat-form-field appearance="outline">
             <mat-label>Costo de compra</mat-label>
             <span matTextPrefix>$&nbsp;</span>
-            <input matInput type="number" min="0" step="0.5" [ngModel]="cost()" (ngModelChange)="cost.set($event)" required />
+            <input
+              matInput
+              type="number"
+              min="0"
+              step="0.5"
+              [ngModel]="cost()"
+              (ngModelChange)="cost.set($event)"
+              required
+            />
           </mat-form-field>
           <span class="muted">por</span>
-          <mat-button-toggle-group [ngModel]="unit()" (ngModelChange)="unit.set($event)" aria-label="Unidad de compra">
+          <mat-button-toggle-group
+            [ngModel]="unit()"
+            (ngModelChange)="unit.set($event)"
+            aria-label="Unidad de compra"
+          >
             <mat-button-toggle value="kg">kg</mat-button-toggle>
             <mat-button-toggle value="L">litro</mat-button-toggle>
             <mat-button-toggle value="pieza">pieza</mat-button-toggle>
           </mat-button-toggle-group>
         </div>
         <div class="hint">
-          En recetas se usa por <strong>{{ useUnit() }}</strong> a <strong>{{ unitCost() | money }}</strong> cada {{ useUnit() }}.
+          En recetas se usa por <strong>{{ useUnit() }}</strong> a
+          <strong>{{ unitCost() | money }}</strong> cada {{ useUnit() }}.
         </div>
         <div class="row">
           <mat-form-field appearance="outline">
@@ -77,7 +94,9 @@ import { MoneyPipe } from '../../core/format';
             @for (h of history().slice(0, 8); track h.id) {
               <tr>
                 <td class="muted">{{ h.changed_at }}</td>
-                <td class="num">{{ h.old_cost | money }} → <strong>{{ h.new_cost | money }}</strong></td>
+                <td class="num">
+                  {{ h.old_cost | money }} → <strong>{{ h.new_cost | money }}</strong>
+                </td>
               </tr>
             }
           </tbody>
@@ -87,18 +106,28 @@ import { MoneyPipe } from '../../core/format';
         <h3>Se usa en</h3>
         <div class="used">
           @for (u of usedIn(); track u.id) {
-            <a class="pill" [routerLink]="['/recetas', u.id]" mat-dialog-close>{{ u.name }} · {{ u.quantity }} {{ useUnit() }}</a>
+            <a
+              class="pill"
+              [routerLink]="['/recetas', u.id]"
+              mat-dialog-close
+              [matTooltip]="u.quantity | ozHint: useUnit()"
+              >{{ u.name }} · {{ u.quantity }} {{ useUnit() }}</a
+            >
           }
         </div>
       }
     </mat-dialog-content>
     <mat-dialog-actions>
       @if (data) {
-        <button mat-button class="danger" (click)="remove()"><mat-icon>delete</mat-icon> Eliminar</button>
+        <button mat-button class="danger" (click)="remove()">
+          <mat-icon>delete</mat-icon> Eliminar
+        </button>
       }
       <span class="spacer"></span>
       <button mat-button mat-dialog-close>Cancelar</button>
-      <button mat-flat-button (click)="save()" [disabled]="!name.trim() || saving()">Guardar</button>
+      <button mat-flat-button (click)="save()" [disabled]="!name.trim() || saving()">
+        Guardar
+      </button>
     </mat-dialog-actions>
   `,
   styles: `
@@ -141,13 +170,14 @@ import { MoneyPipe } from '../../core/format';
     .spacer {
       flex: 1;
     }
-  `
+  `,
 })
 export class IngredientDialog {
   readonly data = inject<Ingredient | null>(MAT_DIALOG_DATA);
   private ref = inject(MatDialogRef<IngredientDialog>);
   private api = inject(ApiService);
   private ui = inject(UiService);
+  private actions = inject(IngredientActions);
 
   name = this.data?.name ?? '';
   code = this.data?.code ?? '';
@@ -157,7 +187,9 @@ export class IngredientDialog {
   readonly cost = signal(this.data?.purchase_cost ?? 0);
   readonly unit = signal<PurchaseUnit>(this.data?.purchase_unit ?? 'kg');
   readonly useUnit = computed(() => ({ kg: 'g', L: 'ml', pieza: 'pieza' })[this.unit()]);
-  readonly unitCost = computed(() => (this.unit() === 'pieza' ? Number(this.cost()) : Number(this.cost()) / 1000));
+  readonly unitCost = computed(() =>
+    this.unit() === 'pieza' ? Number(this.cost()) : Number(this.cost()) / 1000,
+  );
   readonly history = signal<IngredientCostChange[]>([]);
   readonly usedIn = signal<{ id: number; name: string; quantity: number }[]>([]);
   readonly saving = signal(false);
@@ -182,9 +214,9 @@ export class IngredientDialog {
           purchase_unit: this.unit(),
           purchase_cost: Number(this.cost()) || 0,
           notes: this.notes.trim() || null,
-          active: this.active ? 1 : 0
+          active: this.active ? 1 : 0,
         },
-        this.data?.id
+        this.data?.id,
       );
       this.ui.ok('Ingrediente guardado');
       this.ref.close(true);
@@ -197,14 +229,6 @@ export class IngredientDialog {
 
   async remove(): Promise<void> {
     if (!this.data) return;
-    const ok = await this.ui.confirm({ title: 'Eliminar ingrediente', message: `¿Eliminar "${this.data.name}"?`, confirm: 'Eliminar', danger: true });
-    if (!ok) return;
-    try {
-      await this.api.deleteIngredient(this.data.id);
-      this.ui.ok('Ingrediente eliminado');
-      this.ref.close(true);
-    } catch (err) {
-      this.ui.error(err);
-    }
+    if (await this.actions.delete(this.data.id, this.data.name)) this.ref.close(true);
   }
 }

@@ -29,6 +29,7 @@ const SUM_FIELDS = [
 	'net_sale',
 	'iva_amount',
 	'commission_amount',
+	'commission_iva_amount',
 	'isr_ret_amount',
 	'iva_ret_amount',
 	'cost_amount',
@@ -73,7 +74,8 @@ export const byChannel = async (db: Knex, from: string, to: string): Promise<Cha
 	const rows = await range(db('orders as o').join('channels as c', 'c.id', 'o.channel_id'), from, to)
 		.groupBy('c.id')
 		.select('c.id as channel_id', 'c.name as channel_name', 'c.color', ...sumSelect(db))
-		.orderBy('net_sale', 'desc');
+		.orderBy('c.sort_order')
+		.orderBy('c.id');
 	const out: ChannelTotals[] = [];
 	for (const r of rows) {
 		out.push({
@@ -249,7 +251,8 @@ export const breakEven = async (db: Knex, t: Totals, from: string, to: string): 
 export const taxes = (t: Totals): TaxSummary => ({
 	iva_trasladado: t.iva_amount,
 	iva_retenido: t.iva_ret_amount,
-	iva_por_pagar: r2(t.iva_amount - t.iva_ret_amount),
+	iva_acreditable_comisiones: t.commission_iva_amount,
+	iva_por_pagar: r2(t.iva_amount - t.iva_ret_amount - t.commission_iva_amount),
 	isr_retenido: t.isr_ret_amount,
 	base_sin_iva: r2(t.net_sale - t.iva_amount)
 });

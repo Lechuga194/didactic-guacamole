@@ -11,7 +11,7 @@ import { Alert } from '../../core/models';
 const LEVEL = {
   danger: { icon: 'error', label: 'Urgente', cls: 'perdida' },
   warning: { icon: 'warning', label: 'Atención', cls: 'bajo' },
-  info: { icon: 'info', label: 'Aviso', cls: 'sin_precio' }
+  info: { icon: 'info', label: 'Aviso', cls: 'sin_precio' },
 };
 
 @Component({
@@ -22,7 +22,9 @@ const LEVEL = {
       <div class="page-header">
         <div>
           <h1>Alertas</h1>
-          <div class="subtitle">Productos que pierden dinero, alzas de costos y datos incompletos</div>
+          <div class="subtitle">
+            Productos que pierden dinero, alzas de costos y datos incompletos
+          </div>
         </div>
         <span class="spacer"></span>
         <mat-button-toggle-group [value]="filter()" (change)="filter.set($event.value)">
@@ -36,13 +38,17 @@ const LEVEL = {
       <div class="list">
         @for (a of filtered(); track $index) {
           <div class="card alert" [class]="a.level">
-            <span class="status" [class]="level[a.level].cls"><mat-icon>{{ level[a.level].icon }}</mat-icon> {{ level[a.level].label }}</span>
+            <span class="status" [class]="level[a.level].cls"
+              ><mat-icon>{{ level[a.level].icon }}</mat-icon> {{ level[a.level].label }}</span
+            >
             <div class="body">
               <div class="title">{{ a.title }}</div>
               <div class="secondary">{{ a.detail }}</div>
             </div>
             @if (a.link) {
-              <a mat-button [routerLink]="a.link">Revisar <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
+              <a mat-button [routerLink]="a.link"
+                >Revisar <mat-icon iconPositionEnd>arrow_forward</mat-icon></a
+              >
             }
           </div>
         } @empty {
@@ -79,7 +85,7 @@ const LEVEL = {
     .title {
       font: var(--mat-sys-title-small);
     }
-  `
+  `,
 })
 export class AlertsPage {
   private api = inject(ApiService);
@@ -88,7 +94,11 @@ export class AlertsPage {
   readonly alerts = signal<Alert[]>([]);
   readonly filter = signal<'all' | 'danger' | 'warning' | 'info'>('all');
   readonly level = LEVEL;
-  readonly filtered = computed(() => (this.filter() === 'all' ? this.alerts() : this.alerts().filter((a) => a.level === this.filter())));
+  readonly filtered = computed(() =>
+    this.filter() === 'all'
+      ? this.alerts()
+      : this.alerts().filter((a) => a.level === this.filter()),
+  );
 
   constructor() {
     effect(() => {

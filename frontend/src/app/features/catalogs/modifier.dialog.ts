@@ -10,7 +10,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../core/api.service';
 import { UiService } from '../../core/ui.service';
 import { Ingredient, ModifierGroup, ModifierOption, RecipeListRow } from '../../core/models';
-import { MoneyPipe } from '../../core/format';
+import { MoneyPipe, OzHintPipe } from '../../core/format';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 interface OptRow extends ModifierOption {
   source: 'ninguno' | 'ingrediente' | 'receta' | 'fijo';
@@ -27,7 +28,9 @@ interface OptRow extends ModifierOption {
     MatInputModule,
     MatSelectModule,
     MatIconModule,
-    MoneyPipe
+    MatTooltipModule,
+    MoneyPipe,
+    OzHintPipe,
   ],
   template: `
     <h2 mat-dialog-title>{{ data ? 'Editar grupo' : 'Nuevo grupo de modificadores' }}</h2>
@@ -73,7 +76,7 @@ interface OptRow extends ModifierOption {
                 }
               </mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline" class="dense qty">
+            <mat-form-field appearance="outline" class="dense qty" [matTooltip]="o.quantity | ozHint: unitOf(o)">
               <mat-label>Cantidad</mat-label>
               <input matInput type="number" [(ngModel)]="o.quantity" />
             </mat-form-field>
@@ -86,7 +89,7 @@ interface OptRow extends ModifierOption {
                 }
               </mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline" class="dense qty">
+            <mat-form-field appearance="outline" class="dense qty" [matTooltip]="o.quantity | ozHint: unitOf(o)">
               <mat-label>Cantidad</mat-label>
               <input matInput type="number" [(ngModel)]="o.quantity" />
             </mat-form-field>
@@ -98,7 +101,9 @@ interface OptRow extends ModifierOption {
             </mat-form-field>
           }
           <span class="cost muted">{{ costOf(o) | money }}</span>
-          <button mat-icon-button (click)="removeOption($index)" aria-label="Quitar opción"><mat-icon>close</mat-icon></button>
+          <button mat-icon-button (click)="removeOption($index)" aria-label="Quitar opción">
+            <mat-icon>close</mat-icon>
+          </button>
         </div>
       }
       <button mat-button (click)="addOption()"><mat-icon>add</mat-icon> Agregar opción</button>
@@ -115,7 +120,9 @@ interface OptRow extends ModifierOption {
     </mat-dialog-content>
     <mat-dialog-actions>
       @if (data) {
-        <button mat-button class="danger" (click)="remove()"><mat-icon>delete</mat-icon> Eliminar</button>
+        <button mat-button class="danger" (click)="remove()">
+          <mat-icon>delete</mat-icon> Eliminar
+        </button>
       }
       <span class="spacer"></span>
       <button mat-button mat-dialog-close>Cancelar</button>
@@ -177,7 +184,7 @@ interface OptRow extends ModifierOption {
     .spacer {
       flex: 1;
     }
-  `
+  `,
 })
 export class ModifierDialog {
   readonly data = inject<ModifierGroup | null>(MAT_DIALOG_DATA);
@@ -191,8 +198,14 @@ export class ModifierDialog {
   readonly options = signal<OptRow[]>(
     (this.data?.options ?? []).map((o) => ({
       ...o,
-      source: o.ingredient_id ? 'ingrediente' : o.sub_recipe_id ? 'receta' : o.fixed_cost ? 'fijo' : 'ninguno'
-    }))
+      source: o.ingredient_id
+        ? 'ingrediente'
+        : o.sub_recipe_id
+          ? 'receta'
+          : o.fixed_cost
+            ? 'fijo'
+            : 'ninguno',
+    })),
   );
   readonly ingredients = signal<Ingredient[]>([]);
   readonly allRecipes = signal<RecipeListRow[]>([]);
@@ -210,7 +223,15 @@ export class ModifierDialog {
   addOption(): void {
     this.options.set([
       ...this.options(),
-      { name: '', price_delta: 0, ingredient_id: null, sub_recipe_id: null, quantity: 0, fixed_cost: 0, source: 'ninguno' }
+      {
+        name: '',
+        price_delta: 0,
+        ingredient_id: null,
+        sub_recipe_id: null,
+        quantity: 0,
+        fixed_cost: 0,
+        source: 'ninguno',
+      },
     ]);
   }
 
@@ -218,9 +239,30 @@ export class ModifierDialog {
     this.options.set(this.options().filter((_, i) => i !== idx));
   }
 
+  /** Unidad de uso del componente de la opción (g, ml, pieza...) */
+
+  unitOf(o: OptRow): string {
+
+    if (o.source === 'ingrediente') return this.ingredients().find((i) => i.id === o.ingredient_id)?.use_unit || '';
+
+    if (o.source === 'receta') return this.allRecipes().find((r) => r.id === o.sub_recipe_id)?.yield_unit || '';
+
+    return '';
+
+  }
+
+
   costOf(o: OptRow): number {
-    if (o.source === 'ingrediente') return (this.ingredients().find((i) => i.id === o.ingredient_id)?.unit_cost || 0) * (o.quantity || 0);
-    if (o.source === 'receta') return (this.allRecipes().find((r) => r.id === o.sub_recipe_id)?.cost_unit || 0) * (o.quantity || 0);
+    if (o.source === 'ingrediente')
+      return (
+        (this.ingredients().find((i) => i.id === o.ingredient_id)?.unit_cost || 0) *
+        (o.quantity || 0)
+      );
+    if (o.source === 'receta')
+      return (
+        (this.allRecipes().find((r) => r.id === o.sub_recipe_id)?.cost_unit || 0) *
+        (o.quantity || 0)
+      );
     if (o.source === 'fijo') return o.fixed_cost || 0;
     return 0;
   }
@@ -236,12 +278,18 @@ export class ModifierDialog {
         sub_recipe_id: o.source === 'receta' ? o.sub_recipe_id : null,
         quantity: o.source === 'ingrediente' || o.source === 'receta' ? Number(o.quantity) || 0 : 0,
         fixed_cost: o.source === 'fijo' ? Number(o.fixed_cost) || 0 : 0,
-        active: 1
+        active: 1,
       }));
     try {
       await this.api.saveModifierGroup(
-        { name: this.name.trim(), defines_variant: this.definesVariant, notes: null, options, recipe_ids: this.recipeIds },
-        this.data?.id
+        {
+          name: this.name.trim(),
+          defines_variant: this.definesVariant,
+          notes: null,
+          options,
+          recipe_ids: this.recipeIds,
+        },
+        this.data?.id,
       );
       this.ui.ok('Grupo guardado');
       this.ref.close(true);
@@ -252,7 +300,12 @@ export class ModifierDialog {
 
   async remove(): Promise<void> {
     if (!this.data) return;
-    const ok = await this.ui.confirm({ title: 'Eliminar grupo', message: `¿Eliminar "${this.data.name}"? Las ventas ya registradas conservan sus modificadores.`, confirm: 'Eliminar', danger: true });
+    const ok = await this.ui.confirm({
+      title: 'Eliminar grupo',
+      message: `¿Eliminar "${this.data.name}"? Las ventas ya registradas conservan sus modificadores.`,
+      confirm: 'Eliminar',
+      danger: true,
+    });
     if (!ok) return;
     try {
       await this.api.deleteModifierGroup(this.data.id);

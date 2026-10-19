@@ -13,7 +13,9 @@ export class UiService {
   private dialog = inject(MatDialog);
   readonly themes = THEMES;
   readonly theme = signal<ThemeId>(DEFAULT_THEME);
-  readonly themeDef = computed<ThemeDef>(() => THEMES.find((t) => t.id === this.theme()) || THEMES[0]);
+  readonly themeDef = computed<ThemeDef>(
+    () => THEMES.find((t) => t.id === this.theme()) || THEMES[0],
+  );
   /** Las gráficas usan su paleta para fondo oscuro */
   readonly dark = computed(() => this.themeDef().dark);
 
@@ -28,7 +30,8 @@ export class UiService {
     if (stored === 'dark') stored = 'oscuro';
     if (stored === 'light') stored = DEFAULT_THEME;
     const valid = THEMES.some((t) => t.id === stored);
-    const prefersDark = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersDark =
+      typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
     this.setTheme(valid ? (stored as ThemeId) : prefersDark ? 'oscuro' : DEFAULT_THEME);
   }
 
@@ -53,7 +56,8 @@ export class UiService {
     let message = fallback;
     if (err instanceof HttpErrorResponse) {
       const body = err.error as { error?: string; details?: unknown } | null;
-      if (err.status === 0) message = 'No hay conexión con el servidor. ¿Está corriendo el backend?';
+      if (err.status === 0)
+        message = 'No hay conexión con el servidor. ¿Está corriendo el backend?';
       else if (body?.error) {
         const details = Array.isArray(body.details) ? `: ${body.details.join(', ')}` : '';
         message = body.error + details;

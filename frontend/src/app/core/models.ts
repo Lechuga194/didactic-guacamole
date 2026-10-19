@@ -16,6 +16,9 @@ export interface Ingredient {
   unit_cost: number;
   notes: string | null;
   active: number;
+  price_volatile: number;
+  needs_review: number;
+  purchase_source: 'linea' | 'local';
   used_in: number;
   last_change_at: string | null;
   last_old_cost: number | null;
@@ -45,6 +48,7 @@ export interface RecipeListRow {
   yield_unit: YieldUnit;
   notes: string | null;
   active: number;
+  price_reviewed_at: string | null;
   cost_total: number;
   cost_unit: number;
   packaging_unit: number;
@@ -90,7 +94,12 @@ export interface RecipeInput {
   yield_unit: YieldUnit;
   notes: string | null;
   active: number;
-  items: { ingredient_id: number | null; sub_recipe_id: number | null; quantity: number; notes: string | null }[];
+  items: {
+    ingredient_id: number | null;
+    sub_recipe_id: number | null;
+    quantity: number;
+    notes: string | null;
+  }[];
   modifier_group_ids: number[];
   prices: { channel_id: number; price: number }[];
 }
@@ -118,6 +127,9 @@ export interface AppSettings {
   daily_profit_goal: number;
   backup_keep: number;
   business_name: string;
+  portal_url_didi: string;
+  portal_url_uber: string;
+  portal_url_rappi: string;
 }
 
 export type ExpenseFrequency = 'diario' | 'semanal' | 'quincenal' | 'mensual' | 'anual';
@@ -155,7 +167,8 @@ export interface ModifierGroup {
   recipe_ids: number[];
 }
 
-export type PromotionType = 'porcentaje' | 'monto_fijo' | '2x1' | 'precio_especial' | 'producto_gratis' | 'otro';
+export type PromotionType =
+  'porcentaje' | 'monto_fijo' | '2x1' | 'precio_especial' | 'producto_gratis' | 'otro';
 export type PromotionAbsorber = 'tienda' | 'plataforma' | 'compartido';
 
 export interface Promotion {
@@ -227,6 +240,7 @@ export interface OrderTotals {
   iva_amount: number;
   commission_pct: number;
   commission_amount: number;
+  commission_iva_amount: number;
   isr_ret_pct: number;
   isr_ret_amount: number;
   iva_ret_pct: number;
@@ -368,6 +382,7 @@ export interface Totals {
   net_sale: number;
   iva_amount: number;
   commission_amount: number;
+  commission_iva_amount: number;
   isr_ret_amount: number;
   iva_ret_amount: number;
   cost_amount: number;
@@ -419,7 +434,14 @@ export interface Dashboard {
   totals: Totals;
   previous: Totals;
   by_channel: ChannelTotals[];
-  daily: { date: string; orders: number; net_sale: number; profit: number; cost: number; commission: number }[];
+  daily: {
+    date: string;
+    orders: number;
+    net_sale: number;
+    profit: number;
+    cost: number;
+    commission: number;
+  }[];
   by_category: { category: string; units: number; sales: number; profit: number }[];
   top_by_units: ProductStat[];
   top_by_profit: ProductStat[];
@@ -437,8 +459,20 @@ export interface Dashboard {
     avg_orders_per_day: number;
     net_after_fixed: number;
   };
-  taxes: { iva_trasladado: number; iva_retenido: number; iva_por_pagar: number; isr_retenido: number; base_sin_iva: number };
-  promotions: { description: string; times: number; store_amount: number; platform_amount: number }[];
+  taxes: {
+    iva_trasladado: number;
+    iva_retenido: number;
+    iva_acreditable_comisiones: number;
+    iva_por_pagar: number;
+    isr_retenido: number;
+    base_sin_iva: number;
+  };
+  promotions: {
+    description: string;
+    times: number;
+    store_amount: number;
+    platform_amount: number;
+  }[];
 }
 
 export interface PricingCell {
@@ -463,6 +497,12 @@ export interface PricingRow {
   cost_unit: number;
   packaging_unit: number;
   channels: PricingCell[];
+}
+
+/** Copia de todos los precios guardada como punto de control (price null = sin precio) */
+export interface PriceCheckpoint {
+  created_at: string;
+  items: { recipe_id: number; channel_id: number; price: number | null }[];
 }
 
 export interface Alert {

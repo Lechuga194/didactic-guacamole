@@ -137,7 +137,7 @@ import { fmtPct } from '../core/format';
         border-radius: 3px;
       }
     }
-  `
+  `,
 })
 export class KpiCardComponent {
   readonly label = input.required<string>();
@@ -157,6 +157,10 @@ export class KpiCardComponent {
     const d = this.deltaPct();
     return d === null ? '' : `${d >= 0 ? '+' : ''}${fmtPct(d)}`;
   });
-  readonly goalPct = computed(() => Math.max(0, Math.min(100, (this.current() / this.goal()) * 100)));
-  readonly goalText = computed(() => `${Math.round((this.current() / this.goal()) * 100)}% de la meta`);
+  readonly goalPct = computed(() =>
+    Math.max(0, Math.min(100, (this.current() / this.goal()) * 100)),
+  );
+  readonly goalText = computed(
+    () => `${Math.round((this.current() / this.goal()) * 100)}% de la meta`,
+  );
 }

@@ -9,7 +9,9 @@ import './chart-theme';
  */
 @Component({
   selector: 'app-chart',
-  template: `<div class="wrap" [style.height.px]="height()"><canvas #canvas [attr.aria-label]="label()" role="img"></canvas></div>`,
+  template: `<div class="wrap" [style.height.px]="height()">
+    <canvas #canvas [attr.aria-label]="label()" role="img"></canvas>
+  </div>`,
   styles: `
     :host {
       display: block;
@@ -18,7 +20,7 @@ import './chart-theme';
       position: relative;
       width: 100%;
     }
-  `
+  `,
 })
 export class ChartComponent implements OnDestroy {
   readonly config = input.required<(dark: boolean) => ChartConfiguration>();

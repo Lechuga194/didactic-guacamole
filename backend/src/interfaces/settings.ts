@@ -23,6 +23,9 @@ export interface AppSettings {
 	daily_profit_goal: number;
 	backup_keep: number;
 	business_name: string;
+	portal_url_didi: string;
+	portal_url_uber: string;
+	portal_url_rappi: string;
 }
 
 export type ExpenseFrequency = 'diario' | 'semanal' | 'quincenal' | 'mensual' | 'anual';

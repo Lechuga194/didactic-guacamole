@@ -6,6 +6,7 @@ export interface Totals {
 	net_sale: number;
 	iva_amount: number;
 	commission_amount: number;
+	commission_iva_amount: number;
 	isr_ret_amount: number;
 	iva_ret_amount: number;
 	cost_amount: number;
@@ -77,6 +78,8 @@ export interface BreakEven {
 export interface TaxSummary {
 	iva_trasladado: number;
 	iva_retenido: number;
+	/** IVA que las plataformas cobran sobre su comisión (acreditable) */
+	iva_acreditable_comisiones: number;
 	iva_por_pagar: number;
 	isr_retenido: number;
 	base_sin_iva: number;

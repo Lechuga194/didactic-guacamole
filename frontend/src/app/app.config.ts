@@ -12,9 +12,13 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideHttpClient(),
-    provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+    ),
     provideNativeDateAdapter(),
     { provide: LOCALE_ID, useValue: 'es-MX' },
-    { provide: MAT_DATE_LOCALE, useValue: 'es-MX' }
-  ]
+    { provide: MAT_DATE_LOCALE, useValue: 'es-MX' },
+  ],
 };

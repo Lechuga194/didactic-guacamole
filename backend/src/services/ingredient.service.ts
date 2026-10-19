@@ -81,9 +81,44 @@ export const recentCostChanges = async (
 		.select('h.*', 'i.name', 'i.use_unit')
 		.orderBy('h.id', 'desc');
 
-export const deleteIngredient = async (db: Knex, id: number): Promise<void> => {
-	await db('ingredients').where({ id }).delete();
-};
+/**
+ * Cambia el ingrediente `id` por `replacementId` en todas las recetas y modificadores
+ * (cantidad × factor) y después lo elimina. Si una receta ya tenía el reemplazo, se suman
+ * las cantidades en un solo renglón. Devuelve cuántos renglones de receta se cambiaron.
+ */
+export const replaceAndDelete = async (db: Knex, id: number, replacementId: number, factor: number): Promise<number> =>
+	db.transaction(async (trx) => {
+		const items: { id: number; recipe_id: number; quantity: number }[] = await trx('recipe_items')
+			.where({ ingredient_id: id })
+			.select('id', 'recipe_id', 'quantity');
+		for (const it of items) {
+			const qty = it.quantity * factor;
+			const existing = await trx('recipe_items')
+				.where({ recipe_id: it.recipe_id, ingredient_id: replacementId })
+				.first('id', 'quantity');
+			if (existing) {
+				await trx('recipe_items')
+					.where({ id: existing.id })
+					.update({ quantity: existing.quantity + qty });
+				await trx('recipe_items').where({ id: it.id }).delete();
+			} else {
+				await trx('recipe_items').where({ id: it.id }).update({ ingredient_id: replacementId, quantity: qty });
+			}
+		}
+		await trx('modifier_options')
+			.where({ ingredient_id: id })
+			.update({ ingredient_id: replacementId, quantity: trx.raw('quantity * ?', [factor]) });
+		await trx('ingredients').where({ id }).delete();
+		return items.length;
+	});
+
+/** Quita el ingrediente de todas las recetas que lo usan y lo elimina. Devuelve cuántos renglones se quitaron. */
+export const deleteIngredient = async (db: Knex, id: number): Promise<number> =>
+	db.transaction(async (trx) => {
+		const removed = await trx('recipe_items').where({ ingredient_id: id }).delete();
+		await trx('ingredients').where({ id }).delete();
+		return removed;
+	});
 
 export default {
 	listIngredients,
@@ -96,5 +131,6 @@ export default {
 	recipesUsing,
 	costHistory,
 	recentCostChanges,
+	replaceAndDelete,
 	deleteIngredient
 };

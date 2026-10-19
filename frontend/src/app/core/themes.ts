@@ -19,7 +19,7 @@ export const THEMES: ThemeDef[] = [
     description: 'El original: naranjas cálidos de cocina',
     icon: 'skillet',
     dark: false,
-    preview: ['#f6f4f1', '#fffefc', '#ea580c', '#fffefc']
+    preview: ['#f6f4f1', '#fffefc', '#ea580c', '#fffefc'],
   },
   {
     id: 'claro',
@@ -27,7 +27,7 @@ export const THEMES: ThemeDef[] = [
     description: 'Blanco limpio y grises suaves, mínimo y luminoso',
     icon: 'light_mode',
     dark: false,
-    preview: ['#ffffff', '#fafafa', '#5f6b7a', '#ffffff']
+    preview: ['#ffffff', '#fafafa', '#5f6b7a', '#ffffff'],
   },
   {
     id: 'oscuro',
@@ -35,7 +35,7 @@ export const THEMES: ThemeDef[] = [
     description: 'Fondo oscuro que descansa la vista de noche',
     icon: 'dark_mode',
     dark: true,
-    preview: ['#0f0f0e', '#1a1a19', '#f59e0b', '#141413']
+    preview: ['#0f0f0e', '#1a1a19', '#f59e0b', '#141413'],
   },
   {
     id: 'sonic',
@@ -43,7 +43,7 @@ export const THEMES: ThemeDef[] = [
     description: 'Azul veloz, anillos dorados y líneas de velocidad',
     icon: 'bolt',
     dark: false,
-    preview: ['#e6f0ff', '#ffffff', '#ffc400', '#0b3fbf']
+    preview: ['#e6f0ff', '#ffffff', '#ffc400', '#0b3fbf'],
   },
   {
     id: 'gatos',
@@ -51,8 +51,8 @@ export const THEMES: ThemeDef[] = [
     description: 'Pasteles suaves con huellitas de gato',
     icon: 'pets',
     dark: false,
-    preview: ['#fff6f0', '#fffdfb', '#e07a9a', '#fde9e1']
-  }
+    preview: ['#fff6f0', '#fffdfb', '#e07a9a', '#fde9e1'],
+  },
 ];
 
 export const DEFAULT_THEME: ThemeId = 'cocina';

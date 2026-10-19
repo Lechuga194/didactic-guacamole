@@ -33,7 +33,7 @@ type Preset = 'hoy' | 'ayer' | '7d' | 'mes' | '30d' | 'custom';
     MatProgressBarModule,
     ChannelBadgeComponent,
     MoneyPipe,
-    PctPipe
+    PctPipe,
   ],
   template: `
     <div class="page">
@@ -43,12 +43,18 @@ type Preset = 'hoy' | 'ayer' | '7d' | 'mes' | '30d' | 'custom';
           <div class="subtitle">Historial de pedidos con su utilidad real</div>
         </div>
         <span class="spacer"></span>
-        <a mat-stroked-button [href]="exportUrl()" download><mat-icon>download</mat-icon> Exportar a Excel</a>
+        <a mat-stroked-button [href]="exportUrl()" download
+          ><mat-icon>download</mat-icon> Exportar a Excel</a
+        >
         <a mat-flat-button routerLink="/venta/nueva"><mat-icon>add</mat-icon> Registrar venta</a>
       </div>
 
       <div class="card filters">
-        <mat-button-toggle-group [value]="preset()" (change)="applyPreset($event.value)" aria-label="Periodo">
+        <mat-button-toggle-group
+          [value]="preset()"
+          (change)="applyPreset($event.value)"
+          aria-label="Periodo"
+        >
           <mat-button-toggle value="hoy">Hoy</mat-button-toggle>
           <mat-button-toggle value="ayer">Ayer</mat-button-toggle>
           <mat-button-toggle value="7d">7 días</mat-button-toggle>
@@ -57,11 +63,21 @@ type Preset = 'hoy' | 'ayer' | '7d' | 'mes' | '30d' | 'custom';
         </mat-button-toggle-group>
         <mat-form-field appearance="outline" class="dense">
           <mat-label>Desde</mat-label>
-          <input matInput type="date" [ngModel]="from()" (ngModelChange)="from.set($event); preset.set('custom')" />
+          <input
+            matInput
+            type="date"
+            [ngModel]="from()"
+            (ngModelChange)="from.set($event); preset.set('custom')"
+          />
         </mat-form-field>
         <mat-form-field appearance="outline" class="dense">
           <mat-label>Hasta</mat-label>
-          <input matInput type="date" [ngModel]="to()" (ngModelChange)="to.set($event); preset.set('custom')" />
+          <input
+            matInput
+            type="date"
+            [ngModel]="to()"
+            (ngModelChange)="to.set($event); preset.set('custom')"
+          />
         </mat-form-field>
         <mat-form-field appearance="outline" class="dense">
           <mat-label>Canal</mat-label>
@@ -93,14 +109,28 @@ type Preset = 'hoy' | 'ayer' | '7d' | 'mes' | '30d' | 'custom';
 
       <div class="card">
         <div class="summary">
-          <div><span class="muted">Pedidos</span><strong>{{ sum().orders }}</strong></div>
-          <div><span class="muted">Venta neta</span><strong>{{ sum().net | money }}</strong></div>
-          <div><span class="muted">Comisiones</span><strong>{{ sum().commission | money }}</strong></div>
-          <div><span class="muted">Costo</span><strong>{{ sum().cost | money }}</strong></div>
           <div>
-            <span class="muted">Utilidad</span><strong [class.neg]="sum().profit < 0" [class.pos]="sum().profit >= 0">{{ sum().profit | money }}</strong>
+            <span class="muted">Pedidos</span><strong>{{ sum().orders }}</strong>
           </div>
-          <div><span class="muted">Margen</span><strong>{{ sum().net ? (sum().profit / sum().net | pct) : '—' }}</strong></div>
+          <div>
+            <span class="muted">Venta neta</span><strong>{{ sum().net | money }}</strong>
+          </div>
+          <div>
+            <span class="muted">Comisiones</span><strong>{{ sum().commission | money }}</strong>
+          </div>
+          <div>
+            <span class="muted">Costo</span><strong>{{ sum().cost | money }}</strong>
+          </div>
+          <div>
+            <span class="muted">Utilidad</span
+            ><strong [class.neg]="sum().profit < 0" [class.pos]="sum().profit >= 0">{{
+              sum().profit | money
+            }}</strong>
+          </div>
+          <div>
+            <span class="muted">Margen</span
+            ><strong>{{ sum().net ? (sum().profit / sum().net | pct) : '—' }}</strong>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="simple">
@@ -120,8 +150,15 @@ type Preset = 'hoy' | 'ayer' | '7d' | 'mes' | '30d' | 'custom';
             </thead>
             <tbody>
               @for (o of orders(); track o.id) {
-                <tr class="clickable" [class.cancelled]="o.status === 'cancelado'" (click)="open(o.id)">
-                  <td class="nowrap">{{ o.ordered_at.slice(0, 10) }} <span class="muted">{{ o.ordered_at.slice(11) }}</span></td>
+                <tr
+                  class="clickable"
+                  [class.cancelled]="o.status === 'cancelado'"
+                  (click)="open(o.id)"
+                >
+                  <td class="nowrap">
+                    {{ o.ordered_at.slice(0, 10) }}
+                    <span class="muted">{{ o.ordered_at.slice(11) }}</span>
+                  </td>
                   <td><app-channel [name]="o.channel_name" [hex]="o.channel_color" /></td>
                   <td class="items">
                     {{ o.items_summary }}
@@ -131,10 +168,18 @@ type Preset = 'hoy' | 'ayer' | '7d' | 'mes' | '30d' | 'custom';
                   </td>
                   <td class="muted ref">{{ o.external_ref }}</td>
                   <td class="num">{{ o.net_sale | money }}</td>
-                  <td class="num muted">{{ o.discount_store ? (o.discount_store | money) : '' }}</td>
+                  <td class="num muted">
+                    {{ o.discount_store ? (o.discount_store | money) : '' }}
+                  </td>
                   <td class="num">{{ o.commission_amount | money }}</td>
                   <td class="num">{{ o.cost_amount | money }}</td>
-                  <td class="num" [class.neg]="o.profit_amount < 0" [class.pos]="o.profit_amount >= 0">{{ o.profit_amount | money }}</td>
+                  <td
+                    class="num"
+                    [class.neg]="o.profit_amount < 0"
+                    [class.pos]="o.profit_amount >= 0"
+                  >
+                    {{ o.profit_amount | money }}
+                  </td>
                   <td class="num">{{ o.net_sale ? (o.profit_amount / o.net_sale | pct) : '—' }}</td>
                 </tr>
               } @empty {
@@ -189,7 +234,7 @@ type Preset = 'hoy' | 'ayer' | '7d' | 'mes' | '30d' | 'custom';
     .nowrap {
       white-space: nowrap;
     }
-  `
+  `,
 })
 export class OrdersPage {
   private api = inject(ApiService);
@@ -215,7 +260,7 @@ export class OrdersPage {
       net: done.reduce((a, o) => a + o.net_sale, 0),
       commission: done.reduce((a, o) => a + o.commission_amount, 0),
       cost: done.reduce((a, o) => a + o.cost_amount, 0),
-      profit: done.reduce((a, o) => a + o.profit_amount, 0)
+      profit: done.reduce((a, o) => a + o.profit_amount, 0),
     };
   });
   readonly exportUrl = computed(() => this.api.exportUrl(this.from(), this.to()));
@@ -229,7 +274,7 @@ export class OrdersPage {
         to: this.to(),
         channel_id: this.channelId(),
         status: this.status(),
-        search: this.search().trim()
+        search: this.search().trim(),
       };
       untracked(() => {
         if (this.timer) clearTimeout(this.timer);

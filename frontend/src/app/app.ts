@@ -34,10 +34,10 @@ interface NavItem {
     MatButtonModule,
     MatBadgeModule,
     MatTooltipModule,
-    MatMenuModule
+    MatMenuModule,
   ],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
 })
 export class App {
   private api = inject(ApiService);
@@ -49,7 +49,7 @@ export class App {
     inject(BreakpointObserver)
       .observe('(max-width: 960px)')
       .pipe(map((r) => r.matches)),
-    { initialValue: false }
+    { initialValue: false },
   );
   readonly opened = signal(true);
   readonly businessName = signal('Mi Dark Kitchen');
@@ -61,16 +61,17 @@ export class App {
       items: [
         { path: '/hoy', label: 'Hoy', icon: 'today' },
         { path: '/venta/nueva', label: 'Registrar venta', icon: 'add_shopping_cart' },
-        { path: '/ventas', label: 'Ventas', icon: 'receipt_long' }
-      ]
+        { path: '/ventas', label: 'Ventas', icon: 'receipt_long' },
+        { path: '/plataformas', label: 'Plataformas', icon: 'view_column' },
+      ],
     },
     {
       title: 'Análisis',
       items: [
         { path: '/dashboard', label: 'Dashboard', icon: 'monitoring' },
         { path: '/precios', label: 'Precios y márgenes', icon: 'sell' },
-        { path: '/alertas', label: 'Alertas', icon: 'notifications' }
-      ]
+        { path: '/alertas', label: 'Alertas', icon: 'notifications' },
+      ],
     },
     {
       title: 'Catálogo',
@@ -78,10 +79,10 @@ export class App {
         { path: '/recetas', label: 'Recetas', icon: 'menu_book' },
         { path: '/ingredientes', label: 'Ingredientes', icon: 'nutrition' },
         { path: '/modificadores', label: 'Modificadores', icon: 'tune' },
-        { path: '/promociones', label: 'Promociones', icon: 'local_offer' }
-      ]
+        { path: '/promociones', label: 'Promociones', icon: 'local_offer' },
+      ],
     },
-    { title: '', items: [{ path: '/configuracion', label: 'Configuración', icon: 'settings' }] }
+    { title: '', items: [{ path: '/configuracion', label: 'Configuración', icon: 'settings' }] },
   ];
 
   readonly mode = computed(() => (this.isMobile() ? 'over' : 'side'));

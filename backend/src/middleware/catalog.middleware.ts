@@ -12,7 +12,10 @@ export const verifyIngredient = guard(
 		purchase_unit: Joi.string().valid('kg', 'L', 'pieza').required(),
 		purchase_cost: Joi.number().min(0).required(),
 		notes: Joi.string().max(500).allow(null, ''),
-		active: Joi.number().valid(0, 1)
+		active: Joi.number().valid(0, 1),
+		price_volatile: Joi.number().valid(0, 1),
+		needs_review: Joi.number().valid(0, 1),
+		purchase_source: Joi.string().valid('linea', 'local')
 	})
 );
 
@@ -21,8 +24,18 @@ export const verifyIngredientPatch = guard(
 		purchase_cost: Joi.number().min(0),
 		active: Joi.number().valid(0, 1),
 		category: Joi.string().valid('insumo', 'empaque'),
-		notes: Joi.string().max(500).allow(null, '')
+		notes: Joi.string().max(500).allow(null, ''),
+		price_volatile: Joi.number().valid(0, 1),
+		needs_review: Joi.number().valid(0, 1),
+		purchase_source: Joi.string().valid('linea', 'local')
 	}).min(1)
+);
+
+export const verifyReplaceIngredient = guard(
+	Joi.object({
+		replace_with_id: id.required(),
+		factor: Joi.number().greater(0).max(10000).default(1)
+	})
 );
 
 export const verifyBulkCosts = guard(
@@ -50,7 +63,12 @@ export const verifyRecipe = guard(
 					sub_recipe_id: nullableId,
 					quantity: Joi.number().greater(0).required(),
 					notes: Joi.string().max(200).allow(null, '')
-				}).xor('ingredient_id', 'sub_recipe_id')
+				})
+					// Exactamente uno de los dos. No se usa .xor() porque Joi cuenta null como presente.
+					.custom((value: { ingredient_id?: number | null; sub_recipe_id?: number | null }, helpers) =>
+						!!value.ingredient_id === !!value.sub_recipe_id ? helpers.error('any.invalid') : value
+					)
+					.messages({ 'any.invalid': 'Cada componente debe ser un ingrediente o una preparación (sólo uno)' })
 			)
 			.required(),
 		modifier_group_ids: Joi.array().items(id),
@@ -69,6 +87,21 @@ export const verifyPrice = guard(
 	})
 );
 
+export const verifyBulkPrices = guard(
+	Joi.object({
+		changes: Joi.array()
+			.items(
+				Joi.object({
+					recipe_id: id.required(),
+					channel_id: id.required(),
+					price: Joi.number().min(0).allow(null).required()
+				})
+			)
+			.min(1)
+			.required()
+	})
+);
+
 export const verifyApplySuggested = guard(
 	Joi.object({
 		targets: Joi.array()
@@ -77,6 +110,8 @@ export const verifyApplySuggested = guard(
 			.required()
 	})
 );
+
+export const verifySyncPrices = guard(Joi.object({ source_channel_id: id.required() }));
 
 export const verifyModifierGroup = guard(
 	Joi.object({
@@ -150,7 +185,19 @@ export const verifySettings = guard(
 		daily_sales_goal: Joi.number().min(0),
 		daily_profit_goal: Joi.number().min(0),
 		backup_keep: Joi.number().integer().min(1).max(365),
-		business_name: Joi.string().trim().min(1).max(60)
+		business_name: Joi.string().trim().min(1).max(60),
+		portal_url_didi: Joi.string()
+			.trim()
+			.uri({ scheme: ['https', 'http'] })
+			.max(500),
+		portal_url_uber: Joi.string()
+			.trim()
+			.uri({ scheme: ['https', 'http'] })
+			.max(500),
+		portal_url_rappi: Joi.string()
+			.trim()
+			.uri({ scheme: ['https', 'http'] })
+			.max(500)
 	}).min(1)
 );
 
@@ -168,12 +215,15 @@ export const verifyExpense = guard(
 export default {
 	verifyIngredient,
 	verifyIngredientPatch,
+	verifyReplaceIngredient,
 	verifyBulkCosts,
 	verifyRecipe,
 	verifyDuplicate,
 	verifyActive,
 	verifyPrice,
+	verifyBulkPrices,
 	verifyApplySuggested,
+	verifySyncPrices,
 	verifyModifierGroup,
 	verifyPromotion,
 	verifyChannel,

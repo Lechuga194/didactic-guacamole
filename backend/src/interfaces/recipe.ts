@@ -10,6 +10,8 @@ export interface Recipe {
 	yield_unit: YieldUnit;
 	notes: string | null;
 	active: number;
+	/** Última vez que se revisó el precio ('YYYY-MM-DD HH:MM:SS' hora local) */
+	price_reviewed_at: string | null;
 	created_at: string;
 	updated_at: string;
 }

@@ -18,11 +18,12 @@ import {
   OrderInput,
   OrderListRow,
   OrderPreview,
+  PriceCheckpoint,
   PricingRow,
   Promotion,
   RecipeDetail,
   RecipeInput,
-  RecipeListRow
+  RecipeListRow,
 } from './models';
 
 type Params = Record<string, string | number | boolean | null | undefined>;
@@ -35,7 +36,8 @@ export class ApiService {
 
   private params(p: Params = {}): HttpParams {
     let hp = new HttpParams();
-    for (const [k, v] of Object.entries(p)) if (v !== null && v !== undefined && v !== '') hp = hp.set(k, String(v));
+    for (const [k, v] of Object.entries(p))
+      if (v !== null && v !== undefined && v !== '') hp = hp.set(k, String(v));
     return hp;
   }
 
@@ -43,7 +45,9 @@ export class ApiService {
     return firstValueFrom(this.http.get<T>(this.base + url, { params: this.params(params) }));
   }
   post<T>(url: string, body: unknown, params?: Params): Promise<T> {
-    return firstValueFrom(this.http.post<T>(this.base + url, body, { params: this.params(params) }));
+    return firstValueFrom(
+      this.http.post<T>(this.base + url, body, { params: this.params(params) }),
+    );
   }
   put<T>(url: string, body: unknown): Promise<T> {
     return firstValueFrom(this.http.put<T>(this.base + url, body));
@@ -56,51 +60,97 @@ export class ApiService {
   }
 
   // Ingredientes
-  ingredients = () => this.get<{ ingredients: Ingredient[] }>('/ingredients').then((r) => r.ingredients);
+  ingredients = () =>
+    this.get<{ ingredients: Ingredient[] }>('/ingredients').then((r) => r.ingredients);
   ingredient = (id: number) =>
-    this.get<{ ingredient: Ingredient; history: IngredientCostChange[]; used_in: { id: number; name: string; quantity: number }[] }>(
-      `/ingredients/${id}`
-    );
+    this.get<{
+      ingredient: Ingredient;
+      history: IngredientCostChange[];
+      used_in: { id: number; name: string; quantity: number }[];
+    }>(`/ingredients/${id}`);
   saveIngredient = (data: Partial<Ingredient>, id?: number) =>
-    id ? this.put<{ id: number }>(`/ingredients/${id}`, data) : this.post<{ id: number }>('/ingredients', data);
-  patchIngredient = (id: number, data: Partial<Ingredient>) => this.patch<{ id: number }>(`/ingredients/${id}`, data);
+    id
+      ? this.put<{ id: number }>(`/ingredients/${id}`, data)
+      : this.post<{ id: number }>('/ingredients', data);
+  patchIngredient = (id: number, data: Partial<Ingredient>) =>
+    this.patch<{ id: number }>(`/ingredients/${id}`, data);
   bulkCosts = (changes: { id: number; purchase_cost: number }[]) =>
     this.put<{ updated: number }>('/ingredients/bulk-costs', { changes });
-  deleteIngredient = (id: number) => this.delete(`/ingredients/${id}`);
+  replaceIngredient = (id: number, replaceWithId: number, factor: number) =>
+    this.post<{ replaced_with: string; recipes: string[]; changed_items: number }>(
+      `/ingredients/${id}/replace-and-delete`,
+      {
+        replace_with_id: replaceWithId,
+        factor,
+      },
+    );
+  deleteIngredient = (id: number, force = false) =>
+    this.delete(`/ingredients/${id}${force ? '?force=1' : ''}`);
 
   // Recetas
   recipes = () => this.get<{ recipes: RecipeListRow[]; categories: string[] }>('/recipes');
-  recipe = (id: number) => this.get<{ recipe: RecipeDetail }>(`/recipes/${id}`).then((r) => r.recipe);
+  recipe = (id: number) =>
+    this.get<{ recipe: RecipeDetail }>(`/recipes/${id}`).then((r) => r.recipe);
   saveRecipe = (data: RecipeInput, id?: number) =>
-    id ? this.put<{ id: number }>(`/recipes/${id}`, data) : this.post<{ id: number }>('/recipes', data);
-  duplicateRecipe = (id: number, name: string) => this.post<{ id: number }>(`/recipes/${id}/duplicate`, { name });
+    id
+      ? this.put<{ id: number }>(`/recipes/${id}`, data)
+      : this.post<{ id: number }>('/recipes', data);
+  duplicateRecipe = (id: number, name: string) =>
+    this.post<{ id: number }>(`/recipes/${id}/duplicate`, { name });
+  markRecipeReviewed = (id: number) =>
+    this.patch<{ id: number; price_reviewed_at: string }>(`/recipes/${id}/reviewed`, {});
   setRecipeActive = (id: number, active: number) => this.patch(`/recipes/${id}/active`, { active });
-  deleteRecipe = (id: number) => this.delete<{ deleted?: boolean; deactivated?: boolean }>(`/recipes/${id}`);
+  deleteRecipe = (id: number) =>
+    this.delete<{ deleted?: boolean; deactivated?: boolean }>(`/recipes/${id}`);
 
   // Precios
-  pricing = () => this.get<{ rows: PricingRow[]; channels: Channel[]; settings: AppSettings }>('/pricing');
+  pricing = () =>
+    this.get<{ rows: PricingRow[]; channels: Channel[]; settings: AppSettings }>('/pricing');
   setPrice = (recipe_id: number, channel_id: number, price: number | null) =>
     this.put('/pricing/price', { recipe_id, channel_id, price });
+  savePrices = (changes: { recipe_id: number; channel_id: number; price: number | null }[]) =>
+    this.put<{ changed: number }>('/pricing/prices', { changes });
+  priceCheckpoint = () =>
+    this.get<{ checkpoint: PriceCheckpoint | null }>('/pricing/checkpoint').then(
+      (r) => r.checkpoint,
+    );
+  savePriceCheckpoint = () =>
+    this.put<{ checkpoint: PriceCheckpoint | null }>('/pricing/checkpoint', {}).then(
+      (r) => r.checkpoint,
+    );
+  syncPrices = (sourceChannelId: number) =>
+    this.post<{ source: string; targets: string[]; changed: number }>('/pricing/sync', {
+      source_channel_id: sourceChannelId,
+    });
   applySuggested = (targets: { recipe_id: number; channel_id: number }[]) =>
     this.post<{ changed: number }>('/pricing/apply-suggested', { targets });
 
   // Modificadores y promociones
   modifierGroups = () => this.get<{ groups: ModifierGroup[] }>('/modifiers').then((r) => r.groups);
   saveModifierGroup = (data: unknown, id?: number) =>
-    id ? this.put<{ id: number }>(`/modifiers/${id}`, data) : this.post<{ id: number }>('/modifiers', data);
+    id
+      ? this.put<{ id: number }>(`/modifiers/${id}`, data)
+      : this.post<{ id: number }>('/modifiers', data);
   deleteModifierGroup = (id: number) => this.delete(`/modifiers/${id}`);
   promotions = () => this.get<{ promotions: Promotion[] }>('/promotions').then((r) => r.promotions);
   savePromotion = (data: unknown, id?: number) =>
-    id ? this.put<{ id: number }>(`/promotions/${id}`, data) : this.post<{ id: number }>('/promotions', data);
+    id
+      ? this.put<{ id: number }>(`/promotions/${id}`, data)
+      : this.post<{ id: number }>('/promotions', data);
   deletePromotion = (id: number) => this.delete(`/promotions/${id}`);
 
   // Pedidos
-  orderFormData = (channelId?: number) => this.get<OrderFormData>('/orders/form-data', { channel_id: channelId });
-  orders = (filters: Params) => this.get<{ orders: OrderListRow[] }>('/orders', filters).then((r) => r.orders);
+  orderFormData = (channelId?: number) =>
+    this.get<OrderFormData>('/orders/form-data', { channel_id: channelId });
+  orders = (filters: Params) =>
+    this.get<{ orders: OrderListRow[] }>('/orders', filters).then((r) => r.orders);
   order = (id: number) => this.get<{ order: OrderDetail }>(`/orders/${id}`).then((r) => r.order);
-  previewOrder = (data: OrderInput, orderId?: number) => this.post<OrderPreview>('/orders/preview', data, { order_id: orderId });
+  previewOrder = (data: OrderInput, orderId?: number) =>
+    this.post<OrderPreview>('/orders/preview', data, { order_id: orderId });
   saveOrder = (data: OrderInput, id?: number) =>
-    id ? this.put<{ id: number }>(`/orders/${id}`, data) : this.post<{ id: number }>('/orders', data);
+    id
+      ? this.put<{ id: number }>(`/orders/${id}`, data)
+      : this.post<{ id: number }>('/orders', data);
   setOrderStatus = (id: number, status: string) => this.patch(`/orders/${id}/status`, { status });
   deleteOrder = (id: number) => this.delete(`/orders/${id}`);
   scanTicket = (file: Blob) => {
@@ -110,13 +160,15 @@ export class ApiService {
   };
 
   // Reportes
-  day = (date?: string) => this.get<{ summary: DaySummary }>('/reports/day', { date }).then((r) => r.summary);
+  day = (date?: string) =>
+    this.get<{ summary: DaySummary }>('/reports/day', { date }).then((r) => r.summary);
   dashboard = (from: string, to: string) =>
     this.get<{ dashboard: Dashboard }>('/reports/dashboard', { from, to }).then((r) => r.dashboard);
   alerts = () => this.get<{ alerts: Alert[] }>('/reports/alerts').then((r) => r.alerts);
 
   // Configuración
-  settings = () => this.get<{ settings: AppSettings; channels: Channel[]; expenses: FixedExpense[] }>('/settings');
+  settings = () =>
+    this.get<{ settings: AppSettings; channels: Channel[]; expenses: FixedExpense[] }>('/settings');
   saveSettings = (data: Partial<AppSettings>) => this.put('/settings', data);
   saveChannel = (data: Partial<Channel>, id?: number) =>
     id ? this.put(`/settings/channels/${id}`, data) : this.post('/settings/channels', data);
@@ -125,6 +177,7 @@ export class ApiService {
     id ? this.put(`/settings/expenses/${id}`, data) : this.post('/settings/expenses', data);
   deleteExpense = (id: number) => this.delete(`/settings/expenses/${id}`);
   backups = () => this.get<{ backups: BackupInfo[] }>('/settings/backups').then((r) => r.backups);
-  createBackup = () => this.post<{ backups: BackupInfo[] }>('/settings/backups', {}).then((r) => r.backups);
+  createBackup = () =>
+    this.post<{ backups: BackupInfo[] }>('/settings/backups', {}).then((r) => r.backups);
   exportUrl = (from: string, to: string) => `${this.base}/settings/export?from=${from}&to=${to}`;
 }

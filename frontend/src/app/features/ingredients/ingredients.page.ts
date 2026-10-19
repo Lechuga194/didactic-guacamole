@@ -14,6 +14,7 @@ import { UiService } from '../../core/ui.service';
 import { Ingredient } from '../../core/models';
 import { MoneyPipe, PctPipe, UnitCostPipe } from '../../core/format';
 import { IngredientDialog } from './ingredient.dialog';
+import { IngredientActions } from './ingredient-actions';
 
 @Component({
   selector: 'app-ingredients',
@@ -28,14 +29,17 @@ import { IngredientDialog } from './ingredient.dialog';
     MatProgressBarModule,
     MoneyPipe,
     PctPipe,
-    UnitCostPipe
+    UnitCostPipe,
   ],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
           <h1>Ingredientes e insumos</h1>
-          <div class="subtitle">Cambia el costo de compra directamente en la tabla; todas las recetas y márgenes se recalculan solos.</div>
+          <div class="subtitle">
+            Cambia el costo de compra directamente en la tabla; todas las recetas y márgenes se
+            recalculan solos.
+          </div>
         </div>
         <span class="spacer"></span>
         <button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon> Nuevo ingrediente</button>
@@ -63,7 +67,25 @@ import { IngredientDialog } from './ingredient.dialog';
           <table class="simple">
             <thead>
               <tr>
-                <th>Código</th>
+                <th class="vol-col">
+                  <mat-icon
+                    class="vol-head"
+                    matTooltip="Marca los ingredientes cuyo precio fluctúa mucho"
+                    >show_chart</mat-icon
+                  >
+                </th>
+                <th class="vol-col">
+                  <mat-icon class="vol-head" matTooltip="Marca los ingredientes pendientes de revisar"
+                    >flag</mat-icon
+                  >
+                </th>
+                <th class="vol-col">
+                  <mat-icon
+                    class="vol-head"
+                    matTooltip="Dónde se compra: en línea o en tienda local (clic en cada fila para cambiar)"
+                    >shopping_bag</mat-icon
+                  >
+                </th>
                 <th>Ingrediente</th>
                 <th>Tipo</th>
                 <th class="num">Costo de compra</th>
@@ -77,10 +99,68 @@ import { IngredientDialog } from './ingredient.dialog';
             <tbody>
               @for (i of filtered(); track i.id) {
                 <tr [class.inactive]="!i.active">
-                  <td class="muted">{{ i.code }}</td>
-                  <td><button class="link" (click)="edit(i)">{{ i.name }}</button></td>
+                  <td class="vol-col">
+                    <button
+                      class="vol"
+                      [class.on]="i.price_volatile"
+                      (click)="toggleFlag(i, 'price_volatile')"
+                      [matTooltip]="
+                        i.price_volatile
+                          ? 'Precio que fluctúa mucho: revísalo seguido (clic para quitar)'
+                          : 'Marcar como precio que fluctúa mucho'
+                      "
+                      [attr.aria-label]="
+                        i.price_volatile
+                          ? 'Quitar marca de precio variable'
+                          : 'Marcar precio variable'
+                      "
+                      [attr.aria-pressed]="!!i.price_volatile"
+                    >
+                      <mat-icon>{{ i.price_volatile ? 'show_chart' : 'remove' }}</mat-icon>
+                    </button>
+                  </td>
+                  <td class="vol-col">
+                    <button
+                      class="vol review"
+                      [class.on]="i.needs_review"
+                      (click)="toggleFlag(i, 'needs_review')"
+                      [matTooltip]="
+                        i.needs_review
+                          ? 'Pendiente de revisar (clic para quitar)'
+                          : 'Marcar como pendiente de revisar'
+                      "
+                      [attr.aria-label]="
+                        i.needs_review ? 'Quitar marca de pendiente' : 'Marcar pendiente de revisar'
+                      "
+                      [attr.aria-pressed]="!!i.needs_review"
+                    >
+                      <mat-icon>{{ i.needs_review ? 'flag' : 'remove' }}</mat-icon>
+                    </button>
+                  </td>
+                  <td class="vol-col">
+                    <button
+                      class="vol source"
+                      [class.local]="i.purchase_source === 'local'"
+                      (click)="toggleSource(i)"
+                      [matTooltip]="
+                        i.purchase_source === 'local'
+                          ? 'Se compra en tienda local (clic para cambiar a en línea)'
+                          : 'Se compra en línea (clic para cambiar a tienda local)'
+                      "
+                      [attr.aria-label]="
+                        i.purchase_source === 'local' ? 'Compra local' : 'Compra en línea'
+                      "
+                    >
+                      <mat-icon>{{ i.purchase_source === 'local' ? 'storefront' : 'language' }}</mat-icon>
+                    </button>
+                  </td>
                   <td>
-                    <span class="tag" [class.pack]="i.category === 'empaque'">{{ i.category === 'empaque' ? 'Empaque' : 'Insumo' }}</span>
+                    <button class="link" (click)="edit(i)">{{ i.name }}</button>
+                  </td>
+                  <td>
+                    <span class="tag" [class.pack]="i.category === 'empaque'">{{
+                      i.category === 'empaque' ? 'Empaque' : 'Insumo'
+                    }}</span>
                   </td>
                   <td class="num">
                     <span class="cur">$</span>
@@ -96,21 +176,48 @@ import { IngredientDialog } from './ingredient.dialog';
                     />
                   </td>
                   <td class="muted">por {{ i.purchase_unit }}</td>
-                  <td class="num">{{ i.unit_cost | unitCost }} <span class="muted">/ {{ i.use_unit }}</span></td>
                   <td class="num">
-                    @if (i.last_old_cost !== null && i.last_old_cost !== undefined && i.last_change_at) {
-                      <span [class.neg]="i.purchase_cost > i.last_old_cost" [class.pos]="i.purchase_cost < i.last_old_cost" [matTooltip]="'Antes ' + (i.last_old_cost | money) + ' · ' + i.last_change_at">
+                    {{ i.unit_cost | unitCost }} <span class="muted">/ {{ i.use_unit }}</span>
+                  </td>
+                  <td class="num">
+                    @if (
+                      i.last_old_cost !== null && i.last_old_cost !== undefined && i.last_change_at
+                    ) {
+                      <span
+                        [class.neg]="i.purchase_cost > i.last_old_cost"
+                        [class.pos]="i.purchase_cost < i.last_old_cost"
+                        [matTooltip]="
+                          'Antes ' + (i.last_old_cost | money) + ' · ' + i.last_change_at
+                        "
+                      >
                         {{ i.purchase_cost > i.last_old_cost ? '▲' : '▼' }} {{ change(i) | pct }}
                       </span>
                     }
                   </td>
                   <td class="num">{{ i.used_in }}</td>
                   <td class="num">
-                    <button mat-icon-button (click)="edit(i)" aria-label="Editar"><mat-icon>edit</mat-icon></button>
+                    <button
+                      mat-icon-button
+                      (click)="edit(i)"
+                      matTooltip="Editar"
+                      aria-label="Editar"
+                    >
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      (click)="remove(i)"
+                      matTooltip="Eliminar"
+                      aria-label="Eliminar"
+                    >
+                      <mat-icon>delete</mat-icon>
+                    </button>
                   </td>
                 </tr>
               } @empty {
-                <tr><td colspan="9" class="empty">Sin resultados</td></tr>
+                <tr>
+                  <td colspan="9" class="empty">Sin resultados</td>
+                </tr>
               }
             </tbody>
           </table>
@@ -176,13 +283,94 @@ import { IngredientDialog } from './ingredient.dialog';
     tr.inactive td {
       opacity: 0.5;
     }
-  `
+    .vol-col {
+      width: 48px;
+      text-align: center;
+    }
+    .vol-head {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      vertical-align: middle;
+      color: var(--text-muted);
+      cursor: help;
+    }
+    .vol {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--viz-axis);
+      cursor: pointer;
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+      &:hover {
+        background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+        color: var(--text-secondary);
+      }
+      &.on {
+        background: color-mix(in srgb, var(--warning) 22%, transparent);
+        color: var(--serious);
+      }
+      &.review.on {
+        background: color-mix(in srgb, var(--viz-seq) 18%, transparent);
+        color: var(--viz-seq);
+      }
+      // Siempre muestra su estado: en línea (neutro) o local (verde)
+      &.source {
+        color: var(--text-secondary);
+      }
+      &.source.local {
+        background: color-mix(in srgb, var(--good) 16%, transparent);
+        color: var(--good-text);
+      }
+    }
+  `,
 })
 export class IngredientsPage {
   private api = inject(ApiService);
   private live = inject(LiveService);
   private ui = inject(UiService);
   private dialog = inject(MatDialog);
+  private actions = inject(IngredientActions);
+
+  /** Cambia dónde se compra el ingrediente: en línea <-> local. */
+  async toggleSource(i: Ingredient): Promise<void> {
+    const next = i.purchase_source === 'local' ? 'linea' : 'local';
+    this.items.update((list) =>
+      list.map((x) => (x.id === i.id ? { ...x, purchase_source: next } : x)),
+    );
+    try {
+      await this.api.patchIngredient(i.id, { purchase_source: next });
+    } catch (err) {
+      this.items.update((list) =>
+        list.map((x) => (x.id === i.id ? { ...x, purchase_source: i.purchase_source } : x)),
+      );
+      this.ui.error(err);
+    }
+  }
+
+  /** Activa/desactiva un marcador visual (precio variable o pendiente de revisar). */
+  async toggleFlag(i: Ingredient, key: 'price_volatile' | 'needs_review'): Promise<void> {
+    const next = i[key] ? 0 : 1;
+    this.items.update((list) => list.map((x) => (x.id === i.id ? { ...x, [key]: next } : x)));
+    try {
+      await this.api.patchIngredient(i.id, { [key]: next });
+    } catch (err) {
+      this.items.update((list) => list.map((x) => (x.id === i.id ? { ...x, [key]: i[key] } : x)));
+      this.ui.error(err);
+    }
+  }
+
+  async remove(i: Ingredient): Promise<void> {
+    if (await this.actions.delete(i.id, i.name)) await this.load();
+  }
 
   readonly items = signal<Ingredient[]>([]);
   readonly loading = signal(false);
@@ -194,7 +382,7 @@ export class IngredientsPage {
     return this.items().filter(
       (i) =>
         (this.category() === 'todos' || i.category === this.category()) &&
-        (!term || this.norm(i.name).includes(term) || this.norm(i.code || '').includes(term))
+        (!term || this.norm(i.name).includes(term) || this.norm(i.code || '').includes(term)),
     );
   });
 
@@ -242,9 +430,6 @@ export class IngredientsPage {
   }
 
   norm(s: string): string {
-    return s
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .toLowerCase();
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
 }

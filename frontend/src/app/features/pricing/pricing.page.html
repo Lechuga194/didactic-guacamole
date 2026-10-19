@@ -4,20 +4,54 @@
       <h1>Precios y márgenes</h1>
       <div class="subtitle">
         Costo unitario (insumos + desechables) contra precio en cada canal. Margen objetivo
-        <strong>{{ settings()?.target_margin_pct | pct }}</strong> de utilidad real después de IVA, comisión e ISR retenido.
+        <strong>{{ settings()?.target_margin_pct | pct }}</strong> de utilidad real después de IVA,
+        comisión e ISR retenido.
       </div>
     </div>
     <span class="spacer"></span>
-    <a mat-stroked-button routerLink="/configuracion"><mat-icon>tune</mat-icon> Ajustar parámetros</a>
+    <a mat-stroked-button routerLink="/configuracion"
+      ><mat-icon>tune</mat-icon> Ajustar parámetros</a
+    >
+  </div>
+
+  <div class="card save-bar" [class.dirty]="pendingCount()">
+    <mat-icon>{{ pendingCount() ? 'edit_note' : 'cloud_done' }}</mat-icon>
+    <div class="save-text">
+      @if (pendingCount()) {
+        <strong>{{ pendingCount() }} precio(s) sin guardar</strong>
+        <div class="secondary small">
+          Los cambios se muestran en la tabla pero no se aplican hasta que presiones Guardar.
+        </div>
+      } @else {
+        <strong>Sin cambios pendientes</strong>
+        <div class="secondary small">
+          Edita precios, aplica sugeridos o regula plataformas; todo queda pendiente hasta guardar.
+        </div>
+      }
+    </div>
+    <button mat-button (click)="discard()" [disabled]="!pendingCount() || saving()">
+      <mat-icon>undo</mat-icon> Descartar
+    </button>
+    <button mat-flat-button (click)="saveAll()" [disabled]="!pendingCount() || saving()">
+      <mat-icon>save</mat-icon> Guardar{{ pendingCount() ? ' (' + pendingCount() + ')' : '' }}
+    </button>
   </div>
 
   <div class="grid grid-kpi block">
-    <div class="card stat" [class.active]="onlyProblems()" (click)="onlyProblems.set(!onlyProblems())">
+    <div
+      class="card stat"
+      [class.active]="onlyProblems()"
+      (click)="onlyProblems.set(!onlyProblems())"
+    >
       <span class="status perdida"><mat-icon>error</mat-icon> Con pérdida</span>
       <strong>{{ counts().perdida }}</strong>
       <span class="muted">precios por canal</span>
     </div>
-    <div class="card stat" [class.active]="onlyProblems()" (click)="onlyProblems.set(!onlyProblems())">
+    <div
+      class="card stat"
+      [class.active]="onlyProblems()"
+      (click)="onlyProblems.set(!onlyProblems())"
+    >
       <span class="status bajo"><mat-icon>warning</mat-icon> Bajo la meta</span>
       <strong>{{ counts().bajo }}</strong>
       <span class="muted">precios por canal</span>
@@ -27,6 +61,71 @@
       <strong>{{ counts().ok }}</strong>
       <span class="muted">precios por canal</span>
     </div>
+  </div>
+
+  <div class="card sync">
+    <mat-icon class="sync-icon">history</mat-icon>
+    <div class="sync-text">
+      <strong>Punto de control</strong>
+      <div class="secondary small">
+        @if (checkpoint(); as cp) {
+          Copia del <strong>{{ cp.created_at }}</strong
+          >.
+          @if (checkpointDiff().length) {
+            {{ checkpointDiff().length }} precio(s) son distintos a los de la tabla.
+          } @else {
+            La tabla tiene los mismos precios que la copia.
+          }
+          Sólo se reemplaza cuando tú lo decides.
+        } @else {
+          Aún no hay copia. Guarda una para poder regresar fácilmente a los precios de hoy.
+        }
+      </div>
+    </div>
+    <button mat-stroked-button (click)="saveCheckpoint()" [disabled]="savingCheckpoint()">
+      <mat-icon>bookmark_add</mat-icon> {{ checkpoint() ? 'Reemplazar copia' : 'Guardar copia' }}
+    </button>
+    <button
+      mat-stroked-button
+      (click)="restoreCheckpoint()"
+      [disabled]="!checkpointDiff().length"
+      matTooltip="Pone los precios de la copia como cambios pendientes; se aplican al presionar Guardar"
+    >
+      <mat-icon>restore</mat-icon> Restaurar
+      @if (checkpointDiff().length) {
+        ({{ checkpointDiff().length }})
+      }
+    </button>
+  </div>
+
+  <div class="card sync">
+    <mat-icon class="sync-icon">sync_alt</mat-icon>
+    <div class="sync-text">
+      <strong>Regular precios en todas las plataformas</strong>
+      <div class="secondary small">
+        Copia los precios de una plataforma a las demás
+        @if (syncTargetNames()) {
+          ({{ syncTargetNames() }}).
+        }
+        Venta directa no se modifica.
+      </div>
+    </div>
+    <mat-form-field appearance="outline" class="dense source">
+      <mat-label>Tomar precios de</mat-label>
+      <mat-select [ngModel]="syncSource()" (ngModelChange)="syncSource.set($event)">
+        @for (c of platforms(); track c.id) {
+          <mat-option [value]="c.id">{{ c.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-stroked-button (click)="syncPrices()" [disabled]="!syncDiff().length">
+      <mat-icon>done_all</mat-icon>
+      @if (syncDiff().length) {
+        Copiar ({{ syncDiff().length }} cambios)
+      } @else {
+        Ya están iguales
+      }
+    </button>
   </div>
 
   <div class="card filters">
@@ -44,7 +143,9 @@
         }
       </mat-select>
     </mat-form-field>
-    <mat-slide-toggle [checked]="onlyProblems()" (change)="onlyProblems.set($event.checked)">Sólo con problemas</mat-slide-toggle>
+    <mat-slide-toggle [checked]="onlyProblems()" (change)="onlyProblems.set($event.checked)"
+      >Sólo con problemas</mat-slide-toggle
+    >
   </div>
 
   @if (loading() && !rows().length) {
@@ -63,11 +164,24 @@
                 <div class="row nowrap">
                   <app-channel [name]="ch.name" [hex]="ch.color" />
                   <span class="muted">{{ ch.commission_pct | pct }}</span>
-                  <button mat-icon-button class="tiny-btn" [matMenuTriggerFor]="chMenu" aria-label="Acciones del canal"><mat-icon>more_vert</mat-icon></button>
+                  <button
+                    mat-icon-button
+                    class="tiny-btn"
+                    [matMenuTriggerFor]="chMenu"
+                    aria-label="Acciones del canal"
+                  >
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
                   <mat-menu #chMenu="matMenu">
-                    <button mat-menu-item (click)="applyChannel(ch, ['perdida'])">Aplicar sugerido a los que pierden</button>
-                    <button mat-menu-item (click)="applyChannel(ch, ['perdida', 'bajo'])">Aplicar sugerido a todos bajo meta</button>
-                    <button mat-menu-item (click)="applyChannel(ch, ['sin_precio'])">Aplicar sugerido a los que no tienen precio</button>
+                    <button mat-menu-item (click)="applyChannel(ch, ['perdida'])">
+                      Aplicar sugerido a los que pierden
+                    </button>
+                    <button mat-menu-item (click)="applyChannel(ch, ['perdida', 'bajo'])">
+                      Aplicar sugerido a todos bajo meta
+                    </button>
+                    <button mat-menu-item (click)="applyChannel(ch, ['sin_precio'])">
+                      Aplicar sugerido a los que no tienen precio
+                    </button>
                   </mat-menu>
                 </div>
               </th>
@@ -78,16 +192,25 @@
           @for (r of filtered(); track r.recipe_id) {
             <tr>
               <td class="sticky name-cell">
-                <button class="link" (click)="simulate(r)" matTooltip="Abrir simulador de precio">{{ r.name }}</button>
-                <div class="muted small">{{ r.category }}@if (r.kind === 'combo') { · combo }</div>
+                <button class="link" (click)="simulate(r)" matTooltip="Abrir simulador de precio">
+                  {{ r.name }}
+                </button>
+                <div class="muted small">
+                  {{ r.category }}
+                  @if (r.kind === 'combo') {
+                    · combo
+                  }
+                </div>
               </td>
               <td class="num">
                 <div>{{ r.cost_unit | money }}</div>
-                <div class="muted small" matTooltip="Parte del costo que es empaque y desechables">📦 {{ r.packaging_unit | money }}</div>
+                <div class="muted small" matTooltip="Parte del costo que es empaque y desechables">
+                  📦 {{ r.packaging_unit | money }}
+                </div>
               </td>
               @for (ch of channels(); track ch.id) {
                 @if (cell(r, ch); as c) {
-                  <td class="price-cell" [class]="c.status">
+                  <td class="price-cell" [class]="c.status" [class.pending]="isPending(r, ch)">
                     <div class="price-row">
                       <span class="cur">$</span>
                       <input
@@ -101,18 +224,42 @@
                         (keydown.enter)="$any($event.target).blur()"
                         [attr.aria-label]="'Precio de ' + r.name + ' en ' + ch.name"
                       />
-                      <span class="status" [class]="c.status" [matTooltip]="statusLabel[c.status].label">
+                      <span
+                        class="status"
+                        [class]="c.status"
+                        [matTooltip]="statusLabel[c.status].label"
+                      >
                         <mat-icon>{{ statusLabel[c.status].icon }}</mat-icon>
                       </span>
                     </div>
+                    @if (isPending(r, ch)) {
+                      <button
+                        class="was"
+                        (click)="revert(r, ch)"
+                        matTooltip="Sin guardar. Clic para regresar al precio guardado."
+                      >
+                        <mat-icon>undo</mat-icon> antes {{ saved(r.recipe_id, ch.id) ?? '—' }}
+                      </button>
+                    }
                     @if (c.price !== null) {
                       <div class="small" (click)="simulate(r, ch)">
                         <span [class.neg]="(c.profit ?? 0) < 0">{{ c.profit | money }}</span>
                         <span class="muted"> · {{ c.margin_pct | pct }}</span>
                       </div>
                     }
-                    @if (c.suggested_price !== null && (c.price === null || c.suggested_price > c.price)) {
-                      <button class="suggest" (click)="applyOne(r, ch)" [matTooltip]="'Precio para ' + (c.target_margin_pct | pct) + ' de margen. Clic para aplicarlo.'">
+                    @if (
+                      c.suggested_price !== null &&
+                      (c.price === null || c.suggested_price > c.price)
+                    ) {
+                      <button
+                        class="suggest"
+                        (click)="applyOne(r, ch)"
+                        [matTooltip]="
+                          'Precio para ' +
+                          (c.target_margin_pct | pct) +
+                          ' de margen. Clic para usarlo (se aplica al Guardar).'
+                        "
+                      >
                         sugerido {{ c.suggested_price | money }}
                       </button>
                     }
@@ -121,14 +268,19 @@
               }
             </tr>
           } @empty {
-            <tr><td [attr.colspan]="2 + channels().length" class="empty">Sin productos con estos filtros</td></tr>
+            <tr>
+              <td [attr.colspan]="2 + channels().length" class="empty">
+                Sin productos con estos filtros
+              </td>
+            </tr>
           }
         </tbody>
       </table>
     </div>
   </div>
   <p class="muted small note">
-    Utilidad = precio − IVA − comisión − ISR retenido − costo. El precio sugerido se redondea hacia arriba a múltiplos de
-    ${{ settings()?.price_rounding }}. Al cambiar un precio aquí recuerda actualizarlo también en la app de la plataforma.
+    Utilidad = precio − IVA − comisión − ISR retenido − costo. El precio sugerido se redondea hacia
+    arriba a múltiplos de ${{ settings()?.price_rounding }}. Los cambios quedan pendientes hasta
+    presionar Guardar; después recuerda actualizarlos también en la app de la plataforma.
   </p>
 </div>

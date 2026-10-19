@@ -18,7 +18,10 @@ import { PromotionDialog, PROMO_TYPES } from './promotion.dialog';
       <div class="page-header">
         <div>
           <h1>Promociones</h1>
-          <div class="subtitle">Define tus promociones para aplicarlas rápido al registrar una venta y medir cuánto te cuestan</div>
+          <div class="subtitle">
+            Define tus promociones para aplicarlas rápido al registrar una venta y medir cuánto te
+            cuestan
+          </div>
         </div>
         <span class="spacer"></span>
         <button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon> Nueva promoción</button>
@@ -40,7 +43,9 @@ import { PromotionDialog, PROMO_TYPES } from './promotion.dialog';
           <tbody>
             @for (p of promos(); track p.id) {
               <tr class="clickable" [class.cancelled]="!p.active" (click)="edit(p)">
-                <td><strong>{{ p.name }}</strong></td>
+                <td>
+                  <strong>{{ p.name }}</strong>
+                </td>
                 <td>{{ typeLabel(p) }}</td>
                 <td>
                   @if (channelOf(p); as c) {
@@ -50,20 +55,28 @@ import { PromotionDialog, PROMO_TYPES } from './promotion.dialog';
                   }
                 </td>
                 <td>
-                  {{ p.absorbed_by === 'tienda' ? 'Tú' : p.absorbed_by === 'plataforma' ? 'Plataforma' : 'Compartida (' + (p.store_share_pct | pct) + ' tú)' }}
+                  {{
+                    p.absorbed_by === 'tienda'
+                      ? 'Tú'
+                      : p.absorbed_by === 'plataforma'
+                        ? 'Plataforma'
+                        : 'Compartida (' + (p.store_share_pct | pct) + ' tú)'
+                  }}
                 </td>
                 <td class="muted">{{ p.starts_on || '—' }} → {{ p.ends_on || '—' }}</td>
                 <td class="num">{{ p.times_used }}</td>
                 <td class="num">{{ p.store_cost | money }}</td>
               </tr>
             } @empty {
-              <tr><td colspan="7" class="empty">Sin promociones registradas</td></tr>
+              <tr>
+                <td colspan="7" class="empty">Sin promociones registradas</td>
+              </tr>
             }
           </tbody>
         </table>
       </div>
     </div>
-  `
+  `,
 })
 export class PromotionsPage {
   private api = inject(ApiService);
@@ -104,7 +117,11 @@ export class PromotionsPage {
 
   edit(p?: Promotion): void {
     this.dialog
-      .open(PromotionDialog, { data: { promo: p ?? null, channels: this.channels() }, width: '640px', maxWidth: '96vw' })
+      .open(PromotionDialog, {
+        data: { promo: p ?? null, channels: this.channels() },
+        width: '640px',
+        maxWidth: '96vw',
+      })
       .afterClosed()
       .subscribe((changed) => {
         if (changed) this.load();

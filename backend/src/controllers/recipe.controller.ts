@@ -97,6 +97,23 @@ export const setActive = async (req: Request, res: Response) => {
 	}
 };
 
+/** Marca que el precio de la receta se revisó ahora. */
+export const markReviewed = async (req: Request, res: Response) => {
+	const db = knex(dbConf());
+	try {
+		const id = toId(req.params.id);
+		if (!id) return throwGenericError(res, 'Id inválido', null, 400);
+		const reviewedAt = await recipeService.markPriceReviewed(db, id);
+		if (!reviewedAt) return throwGenericError(res, 'Receta no encontrada', null, 404);
+		socket.emit('catalog:changed');
+		res.status(200).json({ id, price_reviewed_at: reviewedAt });
+	} catch (error) {
+		serverError(res, error);
+	} finally {
+		await db.destroy();
+	}
+};
+
 export const remove = async (req: Request, res: Response) => {
 	const db = knex(dbConf());
 	try {
@@ -121,4 +138,4 @@ export const remove = async (req: Request, res: Response) => {
 	}
 };
 
-export default { list, get, create, update, duplicate, setActive, remove };
+export default { list, get, create, update, duplicate, setActive, markReviewed, remove };

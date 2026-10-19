@@ -78,6 +78,16 @@ export const pricingTable = async (db: Knex, ctx?: CostContext): Promise<Pricing
 		.sort((a, b) => (a.category || '').localeCompare(b.category || '', 'es') || a.name.localeCompare(b.name, 'es'));
 };
 
+/** Guarda varios precios en una sola transacción (todo o nada). Precio null = quitar precio. */
+export const savePrices = async (
+	db: Knex,
+	changes: { recipe_id: number; channel_id: number; price: number | null }[]
+): Promise<number> =>
+	db.transaction(async (trx) => {
+		for (const c of changes) await recipeService.upsertPrice(trx, c.recipe_id, c.channel_id, c.price);
+		return changes.length;
+	});
+
 /** Aplica el precio sugerido a los productos/canales indicados. Devuelve cuántos cambió. */
 export const applySuggested = async (
 	db: Knex,
@@ -98,6 +108,81 @@ export const applySuggested = async (
 	return changed;
 };
 
+/**
+ * Copia los precios de un canal a todas las demás plataformas activas
+ * (nunca a venta directa ni a canales que no son plataforma).
+ * Los productos sin precio en el canal de origen no se tocan.
+ */
+export const syncFromChannel = async (
+	db: Knex,
+	sourceChannelId: number
+): Promise<{ targets: string[]; changed: number }> =>
+	db.transaction(async (trx) => {
+		const targets: { id: number; name: string }[] = await trx('channels')
+			.where({ active: 1, is_platform: 1 })
+			.whereNot({ id: sourceChannelId })
+			.orderBy('sort_order')
+			.select('id', 'name');
+		const source: { recipe_id: number; price: number }[] = await trx('recipe_prices')
+			.where({ channel_id: sourceChannelId })
+			.select('recipe_id', 'price');
+		const current: { recipe_id: number; channel_id: number; price: number }[] = targets.length
+			? await trx('recipe_prices')
+					.whereIn(
+						'channel_id',
+						targets.map((t) => t.id)
+					)
+					.select('recipe_id', 'channel_id', 'price')
+			: [];
+		const currentMap = new Map(current.map((c) => [`${c.recipe_id}:${c.channel_id}`, c.price]));
+		let changed = 0;
+		for (const t of targets) {
+			for (const s of source) {
+				if (currentMap.get(`${s.recipe_id}:${t.id}`) === s.price) continue;
+				await recipeService.upsertPrice(trx, s.recipe_id, t.id, s.price);
+				changed++;
+			}
+		}
+		return { targets: targets.map((t) => t.name), changed };
+	});
+
+export interface PriceCheckpoint {
+	created_at: string;
+	items: { recipe_id: number; channel_id: number; price: number | null }[];
+}
+
+/** Punto de control guardado (o null si nunca se ha guardado uno). */
+export const getCheckpoint = async (db: Knex): Promise<PriceCheckpoint | null> => {
+	const head = await db('price_checkpoint').where({ id: 1 }).first('created_at');
+	if (!head) return null;
+	const items = await db('price_checkpoint_items').select('recipe_id', 'channel_id', 'price');
+	return { created_at: head.created_at, items };
+};
+
+/**
+ * Reemplaza el punto de control con los precios guardados en este momento.
+ * Incluye cada producto vendible × canal, con null donde no había precio,
+ * para que al restaurar también se quiten precios agregados después.
+ */
+export const saveCheckpoint = async (db: Knex): Promise<PriceCheckpoint | null> => {
+	await db.transaction(async (trx) => {
+		await trx('price_checkpoint_items').delete();
+		await trx.raw(
+			`INSERT INTO price_checkpoint_items (recipe_id, channel_id, price)
+			 SELECT r.id, c.id, p.price
+			 FROM recipes r
+			 CROSS JOIN channels c
+			 LEFT JOIN recipe_prices p ON p.recipe_id = r.id AND p.channel_id = c.id
+			 WHERE r.kind <> 'preparacion'`
+		);
+		await trx('price_checkpoint')
+			.insert({ id: 1, created_at: trx.raw("datetime('now', 'localtime')") })
+			.onConflict('id')
+			.merge();
+	});
+	return getCheckpoint(db);
+};
+
 export const priceHistory = async (db: Knex, recipeId: number) =>
 	db('recipe_price_history as h')
 		.join('channels as c', 'c.id', 'h.channel_id')
@@ -105,4 +190,14 @@ export const priceHistory = async (db: Knex, recipeId: number) =>
 		.select('h.*', 'c.name as channel_name')
 		.orderBy('h.id', 'desc');
 
-export default { targetFor, buildCell, pricingTable, applySuggested, priceHistory };
+export default {
+	targetFor,
+	buildCell,
+	pricingTable,
+	savePrices,
+	applySuggested,
+	syncFromChannel,
+	getCheckpoint,
+	saveCheckpoint,
+	priceHistory
+};

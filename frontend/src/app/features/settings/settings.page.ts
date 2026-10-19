@@ -10,7 +10,13 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../../core/api.service';
 import { UiService } from '../../core/ui.service';
-import { AppSettings, BackupInfo, Channel, ExpenseFrequency, FixedExpense } from '../../core/models';
+import {
+  AppSettings,
+  BackupInfo,
+  Channel,
+  ExpenseFrequency,
+  FixedExpense,
+} from '../../core/models';
 import { MoneyPipe, addDays, today } from '../../core/format';
 import { CATEGORICAL } from '../../shared/chart-theme';
 
@@ -28,10 +34,10 @@ type Pct = 'commission_pct' | 'isr_ret_pct' | 'iva_ret_pct' | 'target_margin_pct
     MatSlideToggleModule,
     MatTabsModule,
     MatTooltipModule,
-    MoneyPipe
+    MoneyPipe,
   ],
   templateUrl: './settings.page.html',
-  styleUrl: './settings.page.scss'
+  styleUrl: './settings.page.scss',
 })
 export class SettingsPage {
   private api = inject(ApiService);
@@ -102,8 +108,8 @@ export class SettingsPage {
         is_platform: 1,
         color: CATEGORICAL.find((c) => !used.has(c)) || CATEGORICAL[0],
         sort_order: this.channels().length + 1,
-        active: 1
-      }
+        active: 1,
+      },
     ]);
   }
 
@@ -131,7 +137,12 @@ export class SettingsPage {
       this.channels.set(this.channels().filter((x) => x !== c));
       return;
     }
-    const ok = await this.ui.confirm({ title: 'Eliminar canal', message: `¿Eliminar ${c.name}?`, confirm: 'Eliminar', danger: true });
+    const ok = await this.ui.confirm({
+      title: 'Eliminar canal',
+      message: `¿Eliminar ${c.name}?`,
+      confirm: 'Eliminar',
+      danger: true,
+    });
     if (!ok) return;
     try {
       await this.api.deleteChannel(c.id);
@@ -142,7 +153,10 @@ export class SettingsPage {
   }
 
   addExpense(): void {
-    this.expenses.set([...this.expenses(), { id: 0, name: '', category: null, amount: 0, frequency: 'mensual', notes: null, active: 1 }]);
+    this.expenses.set([
+      ...this.expenses(),
+      { id: 0, name: '', category: null, amount: 0, frequency: 'mensual', notes: null, active: 1 },
+    ]);
   }
 
   async saveExpense(e: FixedExpense): Promise<void> {
@@ -171,7 +185,13 @@ export class SettingsPage {
   }
 
   monthly(): number {
-    const f: Record<ExpenseFrequency, number> = { diario: 30, semanal: 52 / 12, quincenal: 2, mensual: 1, anual: 1 / 12 };
+    const f: Record<ExpenseFrequency, number> = {
+      diario: 30,
+      semanal: 52 / 12,
+      quincenal: 2,
+      mensual: 1,
+      anual: 1 / 12,
+    };
     return this.expenses()
       .filter((e) => e.active)
       .reduce((a, e) => a + (Number(e.amount) || 0) * f[e.frequency], 0);

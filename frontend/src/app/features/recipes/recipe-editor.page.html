@@ -40,7 +40,7 @@
               <mat-button-toggle value="preparacion">Preparación</mat-button-toggle>
               <mat-button-toggle value="combo">Combo</mat-button-toggle>
             </mat-button-toggle-group>
-            <mat-form-field appearance="outline" class="yield">
+            <mat-form-field appearance="outline" class="yield" [matTooltip]="yieldQty() | ozHint: yieldUnit()">
               <mat-label>Rinde</mat-label>
               <input matInput type="number" min="0.001" [ngModel]="yieldQty()" (ngModelChange)="yieldQty.set($event)" />
             </mat-form-field>
@@ -107,7 +107,7 @@
                     </div>
                     <div class="muted small">{{ r.hint }}@if (r.packaging) { · 📦 }</div>
                   </td>
-                  <td class="num">
+                  <td class="num" [matTooltip]="r.quantity | ozHint: r.unit">
                     <input class="qty-in" type="number" min="0" step="any" [ngModel]="r.quantity" (ngModelChange)="setQty(r.key, $event)" [attr.aria-label]="'Cantidad de ' + r.name" />
                     <span class="muted unit-l">{{ r.unit }}</span>
                   </td>
@@ -126,7 +126,9 @@
             @if (rows().length) {
               <tfoot>
                 <tr>
-                  <td colspan="3">Costo del lote ({{ yieldQty() }} {{ yieldUnit() }})</td>
+                  <td colspan="3">
+                    Costo del lote (<span [matTooltip]="yieldQty() | ozHint: yieldUnit()">{{ yieldQty() }} {{ yieldUnit() }}</span>)
+                  </td>
                   <td class="num">{{ total() | money }}</td>
                   <td></td>
                 </tr>

@@ -37,12 +37,65 @@ export const setPrice = async (req: Request, res: Response) => {
 	}
 };
 
+export const savePrices = async (req: Request, res: Response) => {
+	const db = knex(dbConf());
+	try {
+		const changed = await pricingService.savePrices(db, req.body.changes);
+		socket.emit('catalog:changed');
+		res.status(200).json({ changed });
+	} catch (error) {
+		serverError(res, error);
+	} finally {
+		await db.destroy();
+	}
+};
+
 export const applySuggested = async (req: Request, res: Response) => {
 	const db = knex(dbConf());
 	try {
 		const changed = await pricingService.applySuggested(db, req.body.targets);
 		socket.emit('catalog:changed');
 		res.status(200).json({ changed });
+	} catch (error) {
+		serverError(res, error);
+	} finally {
+		await db.destroy();
+	}
+};
+
+export const syncFromChannel = async (req: Request, res: Response) => {
+	const db = knex(dbConf());
+	try {
+		const channel = await settingsService.getChannel(db, req.body.source_channel_id);
+		if (!channel) return throwGenericError(res, 'Canal no encontrado', null, 404);
+		if (!channel.is_platform) {
+			return throwGenericError(res, 'El canal de origen debe ser una plataforma (no venta directa)', null, 400);
+		}
+		const result = await pricingService.syncFromChannel(db, channel.id);
+		socket.emit('catalog:changed');
+		res.status(200).json({ source: channel.name, ...result });
+	} catch (error) {
+		serverError(res, error);
+	} finally {
+		await db.destroy();
+	}
+};
+
+export const getCheckpoint = async (_req: Request, res: Response) => {
+	const db = knex(dbConf());
+	try {
+		res.status(200).json({ checkpoint: await pricingService.getCheckpoint(db) });
+	} catch (error) {
+		serverError(res, error);
+	} finally {
+		await db.destroy();
+	}
+};
+
+export const saveCheckpoint = async (_req: Request, res: Response) => {
+	const db = knex(dbConf());
+	try {
+		res.status(200).json({ checkpoint: await pricingService.saveCheckpoint(db) });
 	} catch (error) {
 		serverError(res, error);
 	} finally {
@@ -63,4 +116,4 @@ export const history = async (req: Request, res: Response) => {
 	}
 };
 
-export default { table, setPrice, applySuggested, history };
+export default { table, setPrice, savePrices, applySuggested, syncFromChannel, getCheckpoint, saveCheckpoint, history };

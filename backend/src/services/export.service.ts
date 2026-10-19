@@ -91,6 +91,7 @@ export const buildWorkbook = async (db: Knex, from: string, to: string): Promise
 		{ header: 'Venta neta', key: 'net_sale', width: 12, style: { numFmt: MONEY } },
 		{ header: 'IVA', key: 'iva_amount', width: 10, style: { numFmt: MONEY } },
 		{ header: 'Comisión', key: 'commission_amount', width: 12, style: { numFmt: MONEY } },
+		{ header: 'IVA comisión', key: 'commission_iva_amount', width: 12, style: { numFmt: MONEY } },
 		{ header: 'ISR ret.', key: 'isr_ret_amount', width: 10, style: { numFmt: MONEY } },
 		{ header: 'IVA ret.', key: 'iva_ret_amount', width: 10, style: { numFmt: MONEY } },
 		{ header: 'Costo', key: 'cost_amount', width: 12, style: { numFmt: MONEY } },

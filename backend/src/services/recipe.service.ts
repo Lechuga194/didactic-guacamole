@@ -138,7 +138,9 @@ export const saveRecipe = async (db: Knex, data: RecipeInput, id?: number): Prom
 			yield_qty: data.yield_qty,
 			yield_unit: data.yield_unit,
 			notes: data.notes ?? null,
-			active: data.active ?? 1
+			active: data.active ?? 1,
+			// Guardar la receta cuenta como revisión de su costo/precio
+			price_reviewed_at: trx.raw("datetime('now', 'localtime')")
 		};
 		let recipeId = id;
 		if (recipeId) {
@@ -203,6 +205,15 @@ export const deleteRecipe = async (db: Knex, id: number): Promise<void> => {
 	await db('recipes').where({ id }).delete();
 };
 
+/** Guarda la fecha-hora actual como última revisión de precio. Devuelve la fecha guardada. */
+export const markPriceReviewed = async (db: Knex, id: number): Promise<string | null> => {
+	await db('recipes')
+		.where({ id })
+		.update({ price_reviewed_at: db.raw("datetime('now', 'localtime')") });
+	const row = await db('recipes').where({ id }).first('price_reviewed_at');
+	return row?.price_reviewed_at ?? null;
+};
+
 export const setActive = async (db: Knex, id: number, active: number): Promise<void> => {
 	await db('recipes').where({ id }).update({ active });
 };
@@ -255,6 +266,7 @@ export default {
 	upsertPrice,
 	usage,
 	deleteRecipe,
+	markPriceReviewed,
 	setActive,
 	duplicateRecipe,
 	listCategories

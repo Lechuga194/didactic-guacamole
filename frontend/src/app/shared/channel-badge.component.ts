@@ -5,7 +5,9 @@ import { seriesColor } from './chart-theme';
 /** Punto de color + nombre del canal (la identidad nunca depende sólo del color). */
 @Component({
   selector: 'app-channel',
-  template: `<span class="badge"><span class="dot" [style.background]="color()"></span>{{ name() }}</span>`,
+  template: `<span class="badge"
+    ><span class="dot" [style.background]="color()"></span>{{ name() }}</span
+  >`,
   styles: `
     .badge {
       display: inline-flex;
@@ -13,7 +15,7 @@ import { seriesColor } from './chart-theme';
       gap: 6px;
       white-space: nowrap;
     }
-  `
+  `,
 })
 export class ChannelBadgeComponent {
   readonly name = input.required<string>();

@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatSliderModule } from '@angular/material/slider';
@@ -8,8 +8,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { AppSettings, Channel, PricingRow } from '../../core/models';
 import { MoneyPipe, PctPipe } from '../../core/format';
 import { breakdown, suggestedPrice } from '../../core/pricing';
-import { ApiService } from '../../core/api.service';
-import { UiService } from '../../core/ui.service';
 
 interface SimData {
   row: PricingRow;
@@ -21,7 +19,16 @@ interface SimData {
 /** Simulador: mueve el precio y ve al instante cuánto te deja en cada canal. */
 @Component({
   selector: 'app-simulator',
-  imports: [FormsModule, MatDialogModule, MatButtonModule, MatButtonToggleModule, MatSliderModule, MatIconModule, MoneyPipe, PctPipe],
+  imports: [
+    FormsModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatSliderModule,
+    MatIconModule,
+    MoneyPipe,
+    PctPipe,
+  ],
   template: `
     <h2 mat-dialog-title>Simulador · {{ data.row.name }}</h2>
     <mat-dialog-content>
@@ -62,19 +69,34 @@ interface SimData {
             </tr>
           }
           <tr class="profit" [class.neg]="calc().profit < 0">
-            <td><span class="dot" style="background: var(--good)"></span> <strong>Utilidad real</strong></td>
-            <td class="num"><strong>{{ calc().profit | money }}</strong></td>
-            <td class="num"><strong>{{ calc().margin | pct }}</strong></td>
+            <td>
+              <span class="dot" style="background: var(--good)"></span>
+              <strong>Utilidad real</strong>
+            </td>
+            <td class="num">
+              <strong>{{ calc().profit | money }}</strong>
+            </td>
+            <td class="num">
+              <strong>{{ calc().margin | pct }}</strong>
+            </td>
           </tr>
         </tbody>
       </table>
       <p class="muted small">
-        Cada $10 extra de precio en este canal te dejan {{ perTen() | money }} más. Depósito esperado: {{ calc().payout | money }}.
+        Cada $10 extra de precio en este canal te dejan {{ perTen() | money }} más. Depósito
+        esperado: {{ calc().payout | money }}.
       </p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Cerrar</button>
-      <button mat-flat-button (click)="save()" [disabled]="price() === current()">Guardar {{ price() | money }} en este canal</button>
+      <button
+        mat-flat-button
+        (click)="use()"
+        [disabled]="price() === current()"
+        title="Queda pendiente hasta presionar Guardar en la tabla"
+      >
+        Usar {{ price() | money }} en este canal
+      </button>
     </mat-dialog-actions>
   `,
   styles: `
@@ -117,34 +139,55 @@ interface SimData {
     .small {
       font: var(--mat-sys-body-small);
     }
-  `
+  `,
 })
 export class SimulatorDialog {
   readonly data = inject<SimData>(MAT_DIALOG_DATA);
-  private api = inject(ApiService);
-  private ui = inject(UiService);
+  private ref = inject(MatDialogRef<SimulatorDialog>);
 
   readonly channelId = signal(this.data.channelId ?? this.data.channels[0]?.id);
-  readonly channel = computed(() => this.data.channels.find((c) => c.id === this.channelId()) as Channel);
-  readonly cell = computed(() => this.data.row.channels.find((c) => c.channel_id === this.channelId()));
+  readonly channel = computed(
+    () => this.data.channels.find((c) => c.id === this.channelId()) as Channel,
+  );
+  readonly cell = computed(() =>
+    this.data.row.channels.find((c) => c.channel_id === this.channelId()),
+  );
   readonly current = computed(() => this.cell()?.price ?? 0);
-  readonly target = computed(() => this.channel()?.target_margin_pct ?? this.data.settings.target_margin_pct);
+  readonly target = computed(
+    () => this.channel()?.target_margin_pct ?? this.data.settings.target_margin_pct,
+  );
   readonly suggested = computed(() =>
-    suggestedPrice(this.data.row.cost_unit, this.channel(), this.data.settings.iva_rate, this.target(), this.data.settings.price_rounding)
+    suggestedPrice(
+      this.data.row.cost_unit,
+      this.channel(),
+      this.data.settings.iva_rate,
+      this.target(),
+      this.data.settings.price_rounding,
+    ),
   );
   readonly price = signal(this.current() || this.suggested() || 50);
   readonly min = computed(() => Math.max(0, Math.floor(this.data.row.cost_unit)));
-  readonly max = computed(() => Math.ceil(Math.max(this.suggested() || 0, this.current(), this.data.row.cost_unit * 5) * 1.3));
-  readonly calc = computed(() => breakdown(this.price(), this.data.row.cost_unit, this.channel(), this.data.settings.iva_rate));
-  readonly perTen = computed(() => breakdown(10, 0, this.channel(), this.data.settings.iva_rate).profit);
+  readonly max = computed(() =>
+    Math.ceil(Math.max(this.suggested() || 0, this.current(), this.data.row.cost_unit * 5) * 1.3),
+  );
+  readonly calc = computed(() =>
+    breakdown(this.price(), this.data.row.cost_unit, this.channel(), this.data.settings.iva_rate),
+  );
+  readonly perTen = computed(
+    () => breakdown(10, 0, this.channel(), this.data.settings.iva_rate).profit,
+  );
   readonly parts = computed(() => {
     const b = this.calc();
     return [
-      { label: 'Costo (insumos + empaque)', value: this.data.row.cost_unit, color: 'var(--viz-seq)' },
+      {
+        label: 'Costo (insumos + empaque)',
+        value: this.data.row.cost_unit,
+        color: 'var(--viz-seq)',
+      },
       { label: `Comisión ${this.channel().name}`, value: b.commission, color: '#eb6834' },
       { label: 'IVA', value: b.iva, color: 'var(--text-muted)' },
       { label: 'ISR retenido', value: b.isr, color: 'var(--text-secondary)' },
-      { label: 'Utilidad', value: Math.max(0, b.profit), color: 'var(--good)' }
+      { label: 'Utilidad', value: Math.max(0, b.profit), color: 'var(--good)' },
     ];
   });
 
@@ -153,14 +196,8 @@ export class SimulatorDialog {
     this.price.set(this.current() || this.suggested() || this.price());
   }
 
-  async save(): Promise<void> {
-    try {
-      await this.api.setPrice(this.data.row.recipe_id, this.channelId(), this.price());
-      this.ui.ok('Precio guardado');
-      const cell = this.cell();
-      if (cell) cell.price = this.price();
-    } catch (err) {
-      this.ui.error(err);
-    }
+  /** Devuelve el precio a la tabla como cambio pendiente (no se guarda aquí) */
+  use(): void {
+    this.ref.close({ channel_id: this.channelId(), price: this.price() });
   }
 }

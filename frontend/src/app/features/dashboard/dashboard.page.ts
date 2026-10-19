@@ -13,7 +13,16 @@ import { ApiService } from '../../core/api.service';
 import { LiveService } from '../../core/live.service';
 import { UiService } from '../../core/ui.service';
 import { Dashboard, MenuClass, ProductStat } from '../../core/models';
-import { MoneyPipe, PctPipe, addDays, delta, fmtMoney, fmtPct, parseDate, today } from '../../core/format';
+import {
+  MoneyPipe,
+  PctPipe,
+  addDays,
+  delta,
+  fmtMoney,
+  fmtPct,
+  parseDate,
+  today,
+} from '../../core/format';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { ChartComponent } from '../../shared/chart.component';
 import { ChannelBadgeComponent } from '../../shared/channel-badge.component';
@@ -24,14 +33,27 @@ type Preset = '7d' | '30d' | 'mes' | 'mes_ant' | '90d' | 'custom';
 const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export const MENU_INFO: Record<MenuClass, { label: string; icon: string; advice: string }> = {
-  estrella: { label: 'Estrella', icon: 'star', advice: 'Se vende mucho y deja buen margen. Cuídalo, dale visibilidad y no lo descuentes.' },
+  estrella: {
+    label: 'Estrella',
+    icon: 'star',
+    advice: 'Se vende mucho y deja buen margen. Cuídalo, dale visibilidad y no lo descuentes.',
+  },
   caballo: {
     label: 'Caballo de batalla',
     icon: 'directions_run',
-    advice: 'Se vende mucho pero deja poco. Sube un poco el precio o baja su costo (porción, empaque).'
+    advice:
+      'Se vende mucho pero deja poco. Sube un poco el precio o baja su costo (porción, empaque).',
   },
-  enigma: { label: 'Enigma', icon: 'help', advice: 'Deja buen margen pero se vende poco. Promuévelo: foto, posición en el menú, combos.' },
-  perro: { label: 'Perro', icon: 'pets', advice: 'Se vende poco y deja poco. Rediseña la receta o considera quitarlo del menú.' }
+  enigma: {
+    label: 'Enigma',
+    icon: 'help',
+    advice: 'Deja buen margen pero se vende poco. Promuévelo: foto, posición en el menú, combos.',
+  },
+  perro: {
+    label: 'Perro',
+    icon: 'pets',
+    advice: 'Se vende poco y deja poco. Rediseña la receta o considera quitarlo del menú.',
+  },
 };
 
 @Component({
@@ -50,10 +72,10 @@ export const MENU_INFO: Record<MenuClass, { label: string; icon: string; advice:
     ChartComponent,
     ChannelBadgeComponent,
     MoneyPipe,
-    PctPipe
+    PctPipe,
   ],
   templateUrl: './dashboard.page.html',
-  styleUrl: './dashboard.page.scss'
+  styleUrl: './dashboard.page.scss',
 })
 export class DashboardPage {
   private api = inject(ApiService);
@@ -69,7 +91,9 @@ export class DashboardPage {
   readonly menuInfo = MENU_INFO;
   readonly weekdays = WEEKDAYS;
 
-  readonly d = (key: 'net_sale' | 'profit_amount' | 'orders' | 'avg_ticket' | 'commission_amount') =>
+  readonly d = (
+    key: 'net_sale' | 'profit_amount' | 'orders' | 'avg_ticket' | 'commission_amount',
+  ) =>
     computed(() => {
       const x = this.data();
       return x && x.previous.orders ? delta(x.totals[key], x.previous[key]) : null;
@@ -79,7 +103,9 @@ export class DashboardPage {
   readonly dOrders = this.d('orders');
   readonly dTicket = this.d('avg_ticket');
 
-  readonly channelMax = computed(() => Math.max(1, ...(this.data()?.by_channel || []).map((c) => c.net_sale)));
+  readonly channelMax = computed(() =>
+    Math.max(1, ...(this.data()?.by_channel || []).map((c) => c.net_sale)),
+  );
 
   // ---------------- gráfica diaria ----------------
   readonly dailyChart = computed(() => {
@@ -89,7 +115,9 @@ export class DashboardPage {
       const long = days.length > 45;
       const labels = days.map((p) => {
         const d = parseDate(p.date);
-        return long ? `${d.getDate()}/${d.getMonth() + 1}` : `${WEEKDAYS[d.getDay()]} ${d.getDate()}`;
+        return long
+          ? `${d.getDate()}/${d.getMonth() + 1}`
+          : `${WEEKDAYS[d.getDay()]} ${d.getDate()}`;
       });
       const net = seriesColor('#2a78d6', dark);
       const profit = seriesColor('#1baf7a', dark);
@@ -107,7 +135,7 @@ export class DashboardPage {
               borderWidth: 2,
               pointRadius: 0,
               pointHoverRadius: 5,
-              cubicInterpolationMode: 'monotone'
+              cubicInterpolationMode: 'monotone',
             },
             {
               label: 'Utilidad',
@@ -117,11 +145,11 @@ export class DashboardPage {
               borderWidth: 2,
               pointRadius: 0,
               pointHoverRadius: 5,
-              cubicInterpolationMode: 'monotone'
-            }
-          ]
+              cubicInterpolationMode: 'monotone',
+            },
+          ],
         },
-        options: { ...baseOptions(), interaction: { mode: 'index', intersect: false } }
+        options: { ...baseOptions(), interaction: { mode: 'index', intersect: false } },
       };
     };
   });
@@ -145,15 +173,17 @@ export class DashboardPage {
             label: metric === 'units' ? 'Unidades' : 'Utilidad',
             data: rows.map((r) => (metric === 'units' ? r.units : r.profit)),
             backgroundColor: rows.map((r) =>
-              (metric === 'units' ? true : r.profit >= 0) ? seriesColor('#2a78d6', dark) : cssVar('--critical')
+              (metric === 'units' ? true : r.profit >= 0)
+                ? seriesColor('#2a78d6', dark)
+                : cssVar('--critical'),
             ),
             borderRadius: 4,
             maxBarThickness: 18,
-            borderSkipped: 'start'
-          }
-        ]
+            borderSkipped: 'start',
+          },
+        ],
       },
-      options: this.horizontalOptions(metric === 'profit')
+      options: this.horizontalOptions(metric === 'profit'),
     });
   });
 
@@ -194,10 +224,13 @@ export class DashboardPage {
           ctx.fillText('ESTRELLAS', chartArea.right - 8, chartArea.top + 6);
           ctx.fillText('CABALLOS DE BATALLA', chartArea.right - 8, chartArea.bottom - 20);
           ctx.restore();
-        }
+        },
       };
       const color = seriesColor('#2a78d6', dark);
-      const opts = baseOptions(false) as Record<string, unknown> & { scales: Record<string, Record<string, unknown>>; plugins: Record<string, unknown> };
+      const opts = baseOptions(false) as Record<string, unknown> & {
+        scales: Record<string, Record<string, unknown>>;
+        plugins: Record<string, unknown>;
+      };
       return {
         type: 'scatter',
         data: {
@@ -209,9 +242,9 @@ export class DashboardPage {
               borderColor: cssVar('--card-bg'),
               borderWidth: 2,
               pointRadius: 6,
-              pointHoverRadius: 8
-            }
-          ]
+              pointHoverRadius: 8,
+            },
+          ],
         },
         options: {
           ...opts,
@@ -226,20 +259,31 @@ export class DashboardPage {
                 label: (item: { dataIndex: number }) => {
                   const r = rows[item.dataIndex];
                   return `${r.units} uds · ${fmtMoney(r.profit_per_unit)} por unidad · ${MENU_INFO[r.classification].label}`;
-                }
-              }
-            }
+                },
+              },
+            },
           },
           scales: {
-            x: { ...opts.scales['x'], title: { display: true, text: 'Unidades vendidas (popularidad)', color: cssVar('--text-muted') }, grid: { color: cssVar('--viz-grid') } },
+            x: {
+              ...opts.scales['x'],
+              title: {
+                display: true,
+                text: 'Unidades vendidas (popularidad)',
+                color: cssVar('--text-muted'),
+              },
+              grid: { color: cssVar('--viz-grid') },
+            },
             y: {
               ...opts.scales['y'],
               title: { display: true, text: 'Utilidad por unidad', color: cssVar('--text-muted') },
-              ticks: { color: cssVar('--text-muted'), callback: (v: unknown) => fmtMoney(Number(v), true) }
-            }
-          }
+              ticks: {
+                color: cssVar('--text-muted'),
+                callback: (v: unknown) => fmtMoney(Number(v), true),
+              },
+            },
+          },
         } as ChartConfiguration['options'],
-        plugins: [quadrants]
+        plugins: [quadrants],
       };
     };
   });
@@ -249,7 +293,7 @@ export class DashboardPage {
     return (['estrella', 'caballo', 'enigma', 'perro'] as MenuClass[]).map((k) => ({
       key: k,
       ...MENU_INFO[k],
-      items: rows.filter((r) => r.classification === k).sort((a, b) => b.units - a.units)
+      items: rows.filter((r) => r.classification === k).sort((a, b) => b.units - a.units),
     }));
   });
 
@@ -269,13 +313,20 @@ export class DashboardPage {
         label: WEEKDAYS[wd],
         cells: hourList.map((h) => {
           const c = cells.find((x) => x.weekday === wd && x.hour === h);
-          return { hour: h, orders: c?.orders || 0, net: c?.net_sale || 0, level: c ? c.orders / max : 0 };
-        })
-      }))
+          return {
+            hour: h,
+            orders: c?.orders || 0,
+            net: c?.net_sale || 0,
+            level: c ? c.orders / max : 0,
+          };
+        }),
+      })),
     };
   });
 
-  readonly categoryMax = computed(() => Math.max(1, ...(this.data()?.by_category || []).map((c) => c.sales)));
+  readonly categoryMax = computed(() =>
+    Math.max(1, ...(this.data()?.by_category || []).map((c) => c.sales)),
+  );
 
   constructor() {
     effect(() => {
@@ -329,14 +380,17 @@ export class DashboardPage {
         x: {
           grid: { color: cssVar('--viz-grid') },
           border: { display: false },
-          ticks: { color: cssVar('--text-muted'), callback: money ? (v) => fmtMoney(Number(v), true) : undefined }
+          ticks: {
+            color: cssVar('--text-muted'),
+            callback: money ? (v) => fmtMoney(Number(v), true) : undefined,
+          },
         },
         y: {
           grid: { display: false },
           border: { color: cssVar('--viz-axis') },
-          ticks: { color: cssVar('--text-secondary'), autoSkip: false }
-        }
-      }
+          ticks: { color: cssVar('--text-secondary'), autoSkip: false },
+        },
+      },
     } as ChartConfiguration['options'];
   }
 

@@ -9,7 +9,16 @@ import { ApiService } from '../../core/api.service';
 import { LiveService } from '../../core/live.service';
 import { UiService } from '../../core/ui.service';
 import { DaySummary } from '../../core/models';
-import { MoneyPipe, PctPipe, addDays, delta, fmtLongDate, fmtMoney, fmtPct, today } from '../../core/format';
+import {
+  MoneyPipe,
+  PctPipe,
+  addDays,
+  delta,
+  fmtLongDate,
+  fmtMoney,
+  fmtPct,
+  today,
+} from '../../core/format';
 import { KpiCardComponent } from '../../shared/kpi-card.component';
 import { ChartComponent } from '../../shared/chart.component';
 import { ChannelBadgeComponent } from '../../shared/channel-badge.component';
@@ -27,10 +36,10 @@ import { baseOptions } from '../../shared/chart-theme';
     ChartComponent,
     ChannelBadgeComponent,
     MoneyPipe,
-    PctPipe
+    PctPipe,
   ],
   templateUrl: './today.page.html',
-  styleUrl: './today.page.scss'
+  styleUrl: './today.page.scss',
 })
 export class TodayPage {
   private api = inject(ApiService);
@@ -65,7 +74,7 @@ export class TodayPage {
       { label: 'Comisión plataformas', value: t.commission_amount, color: '#eb6834' },
       { label: 'IVA', value: t.iva_amount, color: 'var(--text-muted)' },
       { label: 'ISR retenido', value: t.isr_ret_amount, color: 'var(--text-secondary)' },
-      { label: 'Utilidad', value: Math.max(0, t.profit_amount), color: 'var(--good)' }
+      { label: 'Utilidad', value: Math.max(0, t.profit_amount), color: 'var(--good)' },
     ];
     const total = parts.reduce((a, p) => a + p.value, 0) || 1;
     return parts.map((p) => ({ ...p, pct: p.value / total }));
@@ -97,7 +106,7 @@ export class TodayPage {
               backgroundColor: dark ? '#3987e5' : '#2a78d6',
               borderRadius: 4,
               maxBarThickness: 22,
-              borderSkipped: 'start'
+              borderSkipped: 'start',
             },
             {
               label: 'Utilidad',
@@ -105,11 +114,11 @@ export class TodayPage {
               backgroundColor: dark ? '#199e70' : '#1baf7a',
               borderRadius: 4,
               maxBarThickness: 22,
-              borderSkipped: 'start'
-            }
-          ]
+              borderSkipped: 'start',
+            },
+          ],
         },
-        options: { ...baseOptions(), interaction: { mode: 'index', intersect: false } }
+        options: { ...baseOptions(), interaction: { mode: 'index', intersect: false } },
       };
     };
   });

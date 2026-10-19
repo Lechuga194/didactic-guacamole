@@ -1,4 +1,14 @@
-import { Component, HostListener, OnDestroy, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  HostListener,
+  OnDestroy,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,7 +17,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import {
+  MatAutocompleteModule,
+  MatAutocompleteSelectedEvent,
+} from '@angular/material/autocomplete';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -29,7 +42,7 @@ import {
   OrderModifierInput,
   OrderPreview,
   Promotion,
-  SellableProduct
+  SellableProduct,
 } from '../../core/models';
 import { MoneyPipe, PctPipe, toStamp } from '../../core/format';
 import { ChannelBadgeComponent } from '../../shared/channel-badge.component';
@@ -89,10 +102,10 @@ let seq = 1;
     MatDividerModule,
     ChannelBadgeComponent,
     MoneyPipe,
-    PctPipe
+    PctPipe,
   ],
   templateUrl: './order-form.page.html',
-  styleUrl: './order-form.page.scss'
+  styleUrl: './order-form.page.scss',
 })
 export class OrderFormPage implements OnDestroy {
   private api = inject(ApiService);
@@ -131,13 +144,19 @@ export class OrderFormPage implements OnDestroy {
   readonly searchTerm = signal('');
 
   readonly channels = computed(() => this.data()?.channels || []);
-  readonly channel = computed<Channel | undefined>(() => this.channels().find((c) => c.id === this.channelId()));
-  readonly productById = computed(() => new Map((this.data()?.products || []).map((p) => [p.id, p])));
+  readonly channel = computed<Channel | undefined>(() =>
+    this.channels().find((c) => c.id === this.channelId()),
+  );
+  readonly productById = computed(
+    () => new Map((this.data()?.products || []).map((p) => [p.id, p])),
+  );
   readonly favorites = computed(() => {
     const d = this.data();
     if (!d) return [];
     const byId = this.productById();
-    const fav = d.favorites.map((f) => byId.get(f.recipe_id)).filter((p): p is SellableProduct => !!p);
+    const fav = d.favorites
+      .map((f) => byId.get(f.recipe_id))
+      .filter((p): p is SellableProduct => !!p);
     if (fav.length >= 8) return fav.slice(0, 12);
     // Sin historial suficiente: completar con productos finales
     const rest = d.products.filter((p) => p.kind !== 'preparacion' && !fav.includes(p));
@@ -147,7 +166,12 @@ export class OrderFormPage implements OnDestroy {
     const term = this.normalize(this.searchTerm());
     const list = this.data()?.products || [];
     if (!term) return list.slice(0, 40);
-    return list.filter((p) => this.normalize(p.name).includes(term) || this.normalize(p.category || '').includes(term)).slice(0, 40);
+    return list
+      .filter(
+        (p) =>
+          this.normalize(p.name).includes(term) || this.normalize(p.category || '').includes(term),
+      )
+      .slice(0, 40);
   });
   readonly activePromos = computed<Promotion[]>(() => {
     const ch = this.channelId();
@@ -159,9 +183,16 @@ export class OrderFormPage implements OnDestroy {
     () =>
       this.lines()
         .flatMap((l) => [l, ...l.children])
-        .filter((l) => l.ocr && (!l.recipe_id || (l.ocr.confidence !== 'alta' && l.recipe_id === l.ocr.original_recipe_id))).length
+        .filter(
+          (l) =>
+            l.ocr &&
+            (!l.recipe_id ||
+              (l.ocr.confidence !== 'alta' && l.recipe_id === l.ocr.original_recipe_id)),
+        ).length,
   );
-  readonly canSave = computed(() => !!this.channelId() && this.lines().length > 0 && !this.saving());
+  readonly canSave = computed(
+    () => !!this.channelId() && this.lines().length > 0 && !this.saving(),
+  );
 
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -249,9 +280,9 @@ export class OrderFormPage implements OnDestroy {
         name: m.name,
         quantity: m.quantity,
         price_delta: m.price_delta,
-        cost_delta: m.cost_delta
+        cost_delta: m.cost_delta,
       })),
-      children: i.children.map(toLine)
+      children: i.children.map(toLine),
     });
     const lines = o.items.map(toLine);
     this.lines.set(lines);
@@ -265,8 +296,8 @@ export class OrderFormPage implements OnDestroy {
         store_amount: p.store_amount,
         platform_amount: p.platform_amount,
         lineKeys: p.order_item_ids.map((i) => idToKey.get(i)).filter((k): k is number => !!k),
-        manual: true
-      }))
+        manual: true,
+      })),
     );
   }
 
@@ -305,7 +336,7 @@ export class OrderFormPage implements OnDestroy {
       return;
     }
     const existing = this.lines().find(
-      (l) => l.recipe_id === p.id && !l.modifiers.length && !l.children.length && !l.ocr
+      (l) => l.recipe_id === p.id && !l.modifiers.length && !l.children.length && !l.ocr,
     );
     if (existing && p.kind !== 'combo') {
       existing.quantity += 1;
@@ -327,7 +358,7 @@ export class OrderFormPage implements OnDestroy {
       unit_price: price,
       priceTouched: false,
       modifiers: [],
-      children: []
+      children: [],
     };
   }
 
@@ -371,7 +402,7 @@ export class OrderFormPage implements OnDestroy {
         active: 1,
         items: [],
         modifier_group_ids: [],
-        prices: ch ? [{ channel_id: ch, price: line.unit_price }] : []
+        prices: ch ? [{ channel_id: ch, price: line.unit_price }] : [],
       });
       this.data.set(await this.api.orderFormData());
       line.recipe_id = res.id;
@@ -402,7 +433,9 @@ export class OrderFormPage implements OnDestroy {
   }
 
   isCombo(line: Line): boolean {
-    return this.productById().get(line.recipe_id || 0)?.kind === 'combo' || line.children.length > 0;
+    return (
+      this.productById().get(line.recipe_id || 0)?.kind === 'combo' || line.children.length > 0
+    );
   }
 
   // ---------------------------------------------------------------- modificadores
@@ -441,8 +474,8 @@ export class OrderFormPage implements OnDestroy {
           name: opt.name,
           quantity: 1,
           price_delta: opt.price_delta,
-          cost_delta: opt.cost ?? 0
-        }
+          cost_delta: opt.cost ?? 0,
+        },
       ];
     }
     this.touch();
@@ -463,7 +496,14 @@ export class OrderFormPage implements OnDestroy {
     if (!name.trim()) return;
     line.modifiers = [
       ...line.modifiers,
-      { modifier_option_id: null, group_name: 'Extra', name: name.trim(), quantity: 1, price_delta: Number(price) || 0, cost_delta: Number(cost) || 0 }
+      {
+        modifier_option_id: null,
+        group_name: 'Extra',
+        name: name.trim(),
+        quantity: 1,
+        price_delta: Number(price) || 0,
+        cost_delta: Number(cost) || 0,
+      },
     ];
     this.touch();
   }
@@ -482,8 +522,12 @@ export class OrderFormPage implements OnDestroy {
       type: p?.type ?? 'otro',
       store_amount: 0,
       platform_amount: 0,
-      lineKeys: p ? this.lines().filter((l) => !p.recipe_ids.length || p.recipe_ids.includes(l.recipe_id || 0)).map((l) => l.key) : [],
-      manual: !p
+      lineKeys: p
+        ? this.lines()
+            .filter((l) => !p.recipe_ids.length || p.recipe_ids.includes(l.recipe_id || 0))
+            .map((l) => l.key)
+        : [],
+      manual: !p,
     };
     this.promos.set([...this.promos(), promo]);
     this.recalcPromos();
@@ -514,7 +558,9 @@ export class OrderFormPage implements OnDestroy {
           total = Math.min(def.value, base);
           break;
         case '2x1': {
-          const units = lines.flatMap((l) => Array(Math.max(1, Math.floor(l.quantity))).fill(this.lineTotal(l) / (l.quantity || 1)));
+          const units = lines.flatMap((l) =>
+            Array(Math.max(1, Math.floor(l.quantity))).fill(this.lineTotal(l) / (l.quantity || 1)),
+          );
           units.sort((a, b) => a - b);
           total = units.slice(0, Math.floor(units.length / 2)).reduce((a, v) => a + v, 0);
           break;
@@ -528,7 +574,12 @@ export class OrderFormPage implements OnDestroy {
         default:
           total = 0;
       }
-      const share = def.absorbed_by === 'tienda' ? 1 : def.absorbed_by === 'plataforma' ? 0 : def.store_share_pct;
+      const share =
+        def.absorbed_by === 'tienda'
+          ? 1
+          : def.absorbed_by === 'plataforma'
+            ? 0
+            : def.store_share_pct;
       const store = Math.round(total * share * 100) / 100;
       const platform = Math.round((total - store) * 100) / 100;
       if (store !== p.store_amount || platform !== p.platform_amount) {
@@ -541,7 +592,9 @@ export class OrderFormPage implements OnDestroy {
   }
 
   togglePromoLine(p: PromoLine, key: number): void {
-    p.lineKeys = p.lineKeys.includes(key) ? p.lineKeys.filter((k) => k !== key) : [...p.lineKeys, key];
+    p.lineKeys = p.lineKeys.includes(key)
+      ? p.lineKeys.filter((k) => k !== key)
+      : [...p.lineKeys, key];
     this.promos.set([...this.promos()]);
     this.recalcPromos();
   }
@@ -587,7 +640,9 @@ export class OrderFormPage implements OnDestroy {
 
   async scan(file: File): Promise<void> {
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      this.ui.error(new Error('Formato no soportado: usa PNG o JPG (en Mac, las capturas ⌘⇧4 son PNG)'));
+      this.ui.error(
+        new Error('Formato no soportado: usa PNG o JPG (en Mac, las capturas ⌘⇧4 son PNG)'),
+      );
       return;
     }
     this.scanning.set(true);
@@ -599,7 +654,11 @@ export class OrderFormPage implements OnDestroy {
       this.showTicket.set(true);
       this.applyDraft(draft);
       const n = draft.items.length;
-      this.ui.ok(n ? `Se leyeron ${n} producto(s). Revisa antes de guardar.` : 'No se reconocieron productos; captúralos a mano.');
+      this.ui.ok(
+        n
+          ? `Se leyeron ${n} producto(s). Revisa antes de guardar.`
+          : 'No se reconocieron productos; captúralos a mano.',
+      );
     } catch (err) {
       this.ui.error(err, 'No se pudo leer la captura');
     } finally {
@@ -629,12 +688,15 @@ export class OrderFormPage implements OnDestroy {
       children: i.children.map(toLine),
       showMods: false,
       ocr: {
-        raw_name: [i.raw_name, ...i.modifiers.filter((m) => m.price_delta || i.modifiers.length < 3).map((m) => m.name)].join(' + '),
+        raw_name: [
+          i.raw_name,
+          ...i.modifiers.filter((m) => m.price_delta || i.modifiers.length < 3).map((m) => m.name),
+        ].join(' + '),
         confidence: i.confidence,
         alias_key: i.alias_key,
         candidates: i.candidates,
-        original_recipe_id: i.recipe_id
-      }
+        original_recipe_id: i.recipe_id,
+      },
     });
     this.lines.set(d.items.map(toLine));
     if (d.discount_store > 0) {
@@ -647,14 +709,16 @@ export class OrderFormPage implements OnDestroy {
           store_amount: d.discount_store,
           platform_amount: 0,
           lineKeys: [],
-          manual: true
-        }
+          manual: true,
+        },
       ]);
     }
   }
 
   confidenceLabel(c: string): string {
-    return { alta: 'Reconocido', media: 'Revisar', baja: 'Revisar', ninguna: 'Elegir producto' }[c] || c;
+    return (
+      { alta: 'Reconocido', media: 'Revisar', baja: 'Revisar', ninguna: 'Elegir producto' }[c] || c
+    );
   }
 
   // ---------------------------------------------------------------- cálculo y guardado
@@ -689,12 +753,12 @@ export class OrderFormPage implements OnDestroy {
       name: m.name,
       quantity: m.quantity || 1,
       price_delta: Number(m.price_delta) || 0,
-      ...(m.cost_delta !== undefined ? { cost_delta: Number(m.cost_delta) || 0 } : {})
+      ...(m.cost_delta !== undefined ? { cost_delta: Number(m.cost_delta) || 0 } : {}),
     })),
     children: l.children.map((c) => {
       const { children: _ignored, ...rest } = this.toItem(c);
       return rest;
-    })
+    }),
   });
 
   payload(): OrderInput | null {
@@ -722,9 +786,11 @@ export class OrderFormPage implements OnDestroy {
           type: p.type,
           store_amount: Number(p.store_amount) || 0,
           platform_amount: Number(p.platform_amount) || 0,
-          item_indexes: p.lineKeys.map((k) => lines.findIndex((l) => l.key === k)).filter((i) => i >= 0)
+          item_indexes: p.lineKeys
+            .map((k) => lines.findIndex((l) => l.key === k))
+            .filter((i) => i >= 0),
         })),
-      learn_aliases: learn
+      learn_aliases: learn,
     };
   }
 
@@ -741,7 +807,7 @@ export class OrderFormPage implements OnDestroy {
       const ok = await this.ui.confirm({
         title: 'Productos sin receta',
         message: `${unmatched.map((l) => l.name).join(', ')} no está ligado a una receta, así que su costo será $0. ¿Guardar de todos modos?`,
-        confirm: 'Guardar'
+        confirm: 'Guardar',
       });
       if (!ok) return;
     }
@@ -750,7 +816,9 @@ export class OrderFormPage implements OnDestroy {
       const id = this.orderId();
       await this.api.saveOrder(payload, id ?? undefined);
       const profit = this.totals()?.profit_amount ?? 0;
-      this.ui.ok(`Venta ${id ? 'actualizada' : 'registrada'} · utilidad ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(profit)}`);
+      this.ui.ok(
+        `Venta ${id ? 'actualizada' : 'registrada'} · utilidad ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(profit)}`,
+      );
       if (another && !id) {
         this.reset(true);
         this.api.orderFormData().then((d) => this.data.set(d));
@@ -767,7 +835,12 @@ export class OrderFormPage implements OnDestroy {
   async remove(): Promise<void> {
     const id = this.orderId();
     if (!id) return;
-    const ok = await this.ui.confirm({ title: 'Eliminar venta', message: 'Se borrará el pedido y su detalle. No se puede deshacer.', confirm: 'Eliminar', danger: true });
+    const ok = await this.ui.confirm({
+      title: 'Eliminar venta',
+      message: 'Se borrará el pedido y su detalle. No se puede deshacer.',
+      confirm: 'Eliminar',
+      danger: true,
+    });
     if (!ok) return;
     try {
       await this.api.deleteOrder(id);
@@ -778,8 +851,9 @@ export class OrderFormPage implements OnDestroy {
     }
   }
 
-  normalize(s: string): string {
-    return s
+  normalize(s: unknown): string {
+    // El autocompletado puede entregar el objeto elegido en lugar del texto
+    return (typeof s === 'string' ? s : '')
       .normalize('NFD')
       .replace(/[̀-ͯ]/g, '')
       .toLowerCase()

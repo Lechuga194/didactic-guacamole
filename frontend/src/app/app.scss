@@ -58,6 +58,7 @@ mat-sidenav-content {
 .cta {
   margin: 8px 16px 8px;
   height: 44px;
+  flex-shrink: 0;
   border-radius: 12px;
   --mat-button-filled-container-color: var(--cta-bg, var(--mat-sys-primary));
   --mat-button-filled-label-text-color: var(--cta-fg, var(--mat-sys-on-primary));

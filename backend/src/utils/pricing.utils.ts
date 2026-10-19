@@ -11,13 +11,17 @@ export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 1
  *   Comisión       = neto * comisión del canal
  *   ISR retenido   = base sin IVA * tasa de retención
  *   IVA retenido   = IVA trasladado * fracción retenida (no es gasto, se acredita en la declaración)
+ *   IVA comisión   = comisión * iva. La plataforma lo cobra aparte ("IVA de la aplicación" en DiDi);
+ *                    es IVA acreditable, así que reduce el depósito pero no la utilidad.
  *   Utilidad       = neto - IVA - comisión - ISR retenido - costo
- *   Depósito       = neto - comisión - ISR retenido - IVA retenido
+ *   Depósito       = neto - comisión - IVA comisión - ISR retenido - IVA retenido
+ *   IVA a pagar    = IVA trasladado - IVA retenido - IVA comisión (antes de otras compras)
  */
 export const breakdown = (netSale: number, cost: number, channel: ChannelRates, ivaRate: number) => {
 	const iva = (netSale * ivaRate) / (1 + ivaRate);
 	const base = netSale - iva;
 	const commission = netSale * channel.commission_pct;
+	const commissionIva = commission * ivaRate;
 	const isr = base * channel.isr_ret_pct;
 	const ivaRet = iva * channel.iva_ret_pct;
 	const profit = netSale - iva - commission - isr - cost;
@@ -25,10 +29,11 @@ export const breakdown = (netSale: number, cost: number, channel: ChannelRates, 
 		iva,
 		base,
 		commission,
+		commission_iva: commissionIva,
 		isr,
 		iva_ret: ivaRet,
 		profit,
-		payout: netSale - commission - isr - ivaRet,
+		payout: netSale - commission - commissionIva - isr - ivaRet,
 		margin_pct: netSale > 0 ? profit / netSale : 0
 	};
 };
@@ -74,6 +79,7 @@ export const orderTotals = (input: TotalsInput, channel: ChannelRates, ivaRate: 
 		iva_amount: round2(b.iva),
 		commission_pct: channel.commission_pct,
 		commission_amount: round2(b.commission),
+		commission_iva_amount: round2(b.commission_iva),
 		isr_ret_pct: channel.isr_ret_pct,
 		isr_ret_amount: round2(b.isr),
 		iva_ret_pct: channel.iva_ret_pct,

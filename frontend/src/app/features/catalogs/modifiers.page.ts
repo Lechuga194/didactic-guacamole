@@ -18,7 +18,10 @@ import { ModifierDialog } from './modifier.dialog';
       <div class="page-header">
         <div>
           <h1>Modificadores</h1>
-          <div class="subtitle">Opciones que el cliente elige en la plataforma: tipo de proteína, salsa, extras, guarniciones…</div>
+          <div class="subtitle">
+            Opciones que el cliente elige en la plataforma: tipo de proteína, salsa, extras,
+            guarniciones…
+          </div>
         </div>
         <span class="spacer"></span>
         <button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon> Nuevo grupo</button>
@@ -28,8 +31,9 @@ import { ModifierDialog } from './modifier.dialog';
         <mat-icon>lightbulb</mat-icon>
         <div>
           <strong>Dos tipos de grupo.</strong>
-          "Define la variante" (p. ej. <em>Proteína</em>) ayuda a reconocer qué receta es en el ticket y su costo ya está en la receta.
-          Los extras (p. ej. <em>Queso extra</em>) suman su propio costo: ligalos a un ingrediente o preparación con la cantidad que llevan.
+          "Define la variante" (p. ej. <em>Proteína</em>) ayuda a reconocer qué receta es en el
+          ticket y su costo ya está en la receta. Los extras (p. ej. <em>Queso extra</em>) suman su
+          propio costo: ligalos a un ingrediente o preparación con la cantidad que llevan.
         </div>
       </div>
 
@@ -39,7 +43,11 @@ import { ModifierDialog } from './modifier.dialog';
             <div class="card-title">
               {{ g.name }}
               <span class="spacer"></span>
-              <span class="status" [class.ok]="g.defines_variant" [class.sin_precio]="!g.defines_variant">
+              <span
+                class="status"
+                [class.ok]="g.defines_variant"
+                [class.sin_precio]="!g.defines_variant"
+              >
                 {{ g.defines_variant ? 'Define la variante' : 'Extra / guarnición' }}
               </span>
             </div>
@@ -58,7 +66,11 @@ import { ModifierDialog } from './modifier.dialog';
               }
             </div>
             <div class="muted small">
-              {{ g.recipe_ids.length ? 'En ' + g.recipe_ids.length + ' producto(s): ' + names(g.recipe_ids) : 'Sin productos ligados' }}
+              {{
+                g.recipe_ids.length
+                  ? 'En ' + g.recipe_ids.length + ' producto(s): ' + names(g.recipe_ids)
+                  : 'Sin productos ligados'
+              }}
             </div>
           </div>
         } @empty {
@@ -99,7 +111,7 @@ import { ModifierDialog } from './modifier.dialog';
     .small {
       font: var(--mat-sys-body-small);
     }
-  `
+  `,
 })
 export class ModifiersPage {
   private api = inject(ApiService);

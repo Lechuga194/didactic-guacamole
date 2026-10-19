@@ -1,5 +1,6 @@
 export type PurchaseUnit = 'kg' | 'L' | 'pieza';
 export type IngredientCategory = 'insumo' | 'empaque';
+export type PurchaseSource = 'linea' | 'local';
 
 export interface Ingredient {
 	id: number;
@@ -12,6 +13,12 @@ export interface Ingredient {
 	unit_cost: number;
 	notes: string | null;
 	active: number;
+	/** 1 = el precio de compra fluctúa mucho (sólo indicador visual) */
+	price_volatile: number;
+	/** 1 = pendiente de revisar (sólo indicador visual) */
+	needs_review: number;
+	/** Dónde se compra: en línea (por defecto) o local (sólo indicador visual) */
+	purchase_source: PurchaseSource;
 	created_at: string;
 	updated_at: string;
 }
@@ -24,6 +31,9 @@ export interface IngredientInput {
 	purchase_cost: number;
 	notes?: string | null;
 	active?: number;
+	price_volatile?: number;
+	needs_review?: number;
+	purchase_source?: PurchaseSource;
 }
 
 export interface IngredientWithUsage extends Ingredient {

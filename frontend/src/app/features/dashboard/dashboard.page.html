@@ -223,9 +223,10 @@
           <div class="stat-line"><span>Base sin IVA</span><strong>{{ d.taxes.base_sin_iva | money }}</strong></div>
           <div class="stat-line"><span>IVA trasladado</span><strong>{{ d.taxes.iva_trasladado | money }}</strong></div>
           <div class="stat-line"><span>IVA retenido por plataformas</span><strong>−{{ d.taxes.iva_retenido | money }}</strong></div>
-          <div class="stat-line big"><span>IVA a pagar (antes de acreditable)</span><strong>{{ d.taxes.iva_por_pagar | money }}</strong></div>
+          <div class="stat-line"><span>IVA pagado en comisiones (acreditable)</span><strong>−{{ d.taxes.iva_acreditable_comisiones | money }}</strong></div>
+          <div class="stat-line big"><span>IVA a pagar (antes de compras)</span><strong>{{ d.taxes.iva_por_pagar | money }}</strong></div>
           <div class="stat-line"><span>ISR retenido por plataformas</span><strong>{{ d.taxes.isr_retenido | money }}</strong></div>
-          <div class="muted small">Estimación informativa. El IVA de tus compras (acreditable) reduce el IVA a pagar; confirma con tu contador.</div>
+          <div class="muted small">Estimación informativa. El IVA de tus compras de insumos, empaque, gas, renta, etc. (acreditable) lo reduce todavía más; confirma con tu contador.</div>
         </div>
 
         <div class="card">

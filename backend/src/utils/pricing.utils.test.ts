@@ -13,7 +13,25 @@ test('desglose de venta en Uber', () => {
 	assert.equal(pricing.round2(b.isr), 2.5);
 	assert.equal(pricing.round2(b.iva_ret), 8);
 	assert.equal(pricing.round2(b.profit), 116 - 16 - 40.6 - 2.5 - 30);
-	assert.equal(pricing.round2(b.payout), 116 - 40.6 - 2.5 - 8);
+	assert.equal(pricing.round2(b.commission_iva), 6.5);
+	assert.equal(pricing.round2(b.payout), pricing.round2(116 - 40.6 - 40.6 * 0.16 - 2.5 - 8));
+});
+
+test('coincide con la liquidación real de DiDi (pedido de $220 con $20 de promoción)', () => {
+	// Liquidación semana 28/09-04/10: base de comisión 200, comisión 60, IVA de la aplicación 16%,
+	// IVA retenido 13.77 sobre base 27.56, ISR retenido 4.29 sobre base 172.46
+	const t = pricing.orderTotals(
+		{ gross_amount: 220, discount_store: 20, discount_platform: 0, cost_amount: 0 },
+		{ commission_pct: 0.3, isr_ret_pct: 0.025, iva_ret_pct: 0.5 },
+		0.16
+	);
+	assert.equal(t.net_sale, 200);
+	assert.equal(t.commission_amount, 60);
+	assert.equal(t.commission_iva_amount, 9.6);
+	assert.ok(Math.abs(t.iva_ret_amount - 13.77) <= 0.03);
+	assert.ok(Math.abs(t.isr_ret_amount - 4.29) <= 0.03);
+	// Depósito real: ganancia 140 - IVA app 9.60 - retenciones 18.06 = 112.34
+	assert.ok(Math.abs(t.payout_amount - 112.34) <= 0.05);
 });
 
 test('el precio sugerido deja exactamente el margen objetivo', () => {
@@ -37,7 +55,7 @@ test('totales de pedido con descuento de tienda (ticket DiDi)', () => {
 	);
 	assert.equal(t.net_sale, 150);
 	assert.equal(t.commission_amount, 45);
-	assert.equal(t.payout_amount, 105);
+	assert.equal(t.payout_amount, 97.8);
 });
 
 test('venta directa sin comisión', () => {

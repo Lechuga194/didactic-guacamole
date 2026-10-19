@@ -60,6 +60,7 @@ export interface Order {
 	iva_amount: number;
 	commission_pct: number;
 	commission_amount: number;
+	commission_iva_amount: number;
 	isr_ret_pct: number;
 	isr_ret_amount: number;
 	iva_ret_pct: number;
@@ -148,6 +149,7 @@ export interface OrderTotals {
 	iva_amount: number;
 	commission_pct: number;
 	commission_amount: number;
+	commission_iva_amount: number;
 	isr_ret_pct: number;
 	isr_ret_amount: number;
 	iva_ret_pct: number;
