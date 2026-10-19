@@ -14,6 +14,8 @@ const PORTAL_PERMISSIONS = ['notifications', 'media', 'clipboard-sanitized-write
 
 let win = null;
 let baseUrl = '';
+/** true al salir de verdad (Cmd+Q); en Mac cerrar la ventana sólo la oculta */
+let quitting = false;
 
 const dataDir = () => app.getPath('userData');
 const dbFile = () => path.join(dataDir(), 'cocina.sqlite');
@@ -21,7 +23,35 @@ const pendingImportFile = () => path.join(dataDir(), 'importar.txt');
 
 // COCINA_DATA_DIR permite usar otra carpeta de datos (pruebas)
 if (process.env.COCINA_DATA_DIR) app.setPath('userData', path.resolve(process.env.COCINA_DATA_DIR));
-if (!app.requestSingleInstanceLock()) app.quit();
+// Si ya hay una Cocina abierta, ésta se cierra de inmediato y la otra se trae al frente (evento second-instance)
+const primary = app.requestSingleInstanceLock();
+if (!primary) app.exit(0);
+
+/** Todo lo que imprime el backend también va a cocina.log en la carpeta de datos (para diagnosticar). */
+const setupLog = () => {
+	const file = path.join(dataDir(), 'cocina.log');
+	fs.mkdirSync(dataDir(), { recursive: true });
+	// Se conserva sólo la sesión anterior para que no crezca sin límite
+	if (fs.existsSync(file)) fs.renameSync(file, `${file}.1`);
+	const write = (level, args) => {
+		const text = args.map((a) => (a instanceof Error ? a.stack : typeof a === 'string' ? a : JSON.stringify(a)));
+		try {
+			fs.appendFileSync(file, `${new Date().toISOString()} ${level} ${text.join(' ')}\n`);
+		} catch {
+			/* sin log */
+		}
+	};
+	for (const level of ['log', 'warn', 'error']) {
+		const original = console[level].bind(console);
+		console[level] = (...args) => {
+			original(...args);
+			write(level, args);
+		};
+	}
+	process.on('uncaughtException', (error) => console.error('Error no controlado', error));
+	process.on('unhandledRejection', (error) => console.error('Promesa rechazada', error));
+	console.log(`Cocina ${app.getVersion()} · Electron ${process.versions.electron} · ${process.platform}-${process.arch}`);
+};
 
 /** Variables que lee el backend: datos en la carpeta del usuario, frontend empaquetado y sólo acceso local. */
 const configureBackend = () => {
@@ -163,9 +193,24 @@ const createWindow = () => {
 			webviewTag: true
 		}
 	});
-	win.once('ready-to-show', () => {
+	// Se muestra al estar lista; si esa señal no llega (pasó al abrir desde el instalador), se muestra igual
+	const reveal = (why) => {
+		if (!win || win.isVisible()) return;
+		console.log(`Ventana visible (${why})`);
 		win.maximize();
 		win.show();
+		win.focus();
+	};
+	win.once('ready-to-show', () => reveal('lista'));
+	win.webContents.once('did-finish-load', () => reveal('cargada'));
+	win.webContents.on('did-fail-load', (_e, code, desc, url) => console.error('No cargó la ventana', code, desc, url));
+	win.webContents.on('render-process-gone', (_e, details) => console.error('La ventana se cerró sola', details));
+	setTimeout(() => reveal('tiempo de espera'), 4000);
+	// En Mac la ventana roja sólo oculta: los portales siguen activos y sonando; el Dock la vuelve a mostrar
+	win.on('close', (event) => {
+		if (process.platform !== 'darwin' || quitting) return;
+		event.preventDefault();
+		win.hide();
 	});
 	win.on('closed', () => (win = null));
 
@@ -241,12 +286,18 @@ ipcMain.on('open-external', (_event, url) => {
 });
 
 app.on('second-instance', () => {
-	if (!win) return;
+	if (!win) {
+		if (baseUrl) createWindow();
+		return;
+	}
 	if (win.isMinimized()) win.restore();
+	if (!win.isVisible()) win.show();
 	win.focus();
 });
 
 app.whenReady().then(async () => {
+	if (!primary) return;
+	setupLog();
 	try {
 		configureBackend();
 		applyPendingImport();
@@ -258,14 +309,20 @@ app.whenReady().then(async () => {
 		buildMenu();
 		createWindow();
 	} catch (error) {
+		console.error('No se pudo iniciar', error);
 		dialog.showErrorBox('No se pudo iniciar Cocina', String(error?.stack || error));
 		app.exit(1);
 	}
 });
 
 // En Mac la app sigue viva al cerrar la ventana (como cualquier app); el Dock la vuelve a abrir
+app.on('before-quit', () => (quitting = true));
 app.on('activate', () => {
-	if (!win && baseUrl) createWindow();
+	if (!baseUrl) return;
+	if (!win) return createWindow();
+	if (win.isMinimized()) win.restore();
+	win.show();
+	win.focus();
 });
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') app.quit();

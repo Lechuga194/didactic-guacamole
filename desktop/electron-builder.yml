@@ -16,8 +16,9 @@ mac:
   x64ArchFiles: '**/better-sqlite3/prebuilds/**'
   target:
     - target: dmg
-  # Sin cuenta de Apple Developer la app no se firma; se abre con clic derecho > Abrir la primera vez
-  identity: null
+  # Firma ad-hoc (sin cuenta de Apple Developer). Sin ninguna firma, las Mac con chip Apple dicen que la app
+  # "está dañada" y no dejan abrirla; con ad-hoc basta con "Abrir de todos modos" la primera vez
+  identity: '-'
   hardenedRuntime: false
 dmg:
   title: Cocina

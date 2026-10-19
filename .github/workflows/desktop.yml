@@ -38,8 +38,18 @@ jobs:
         working-directory: desktop
         run: npm run ${{ matrix.script }}
         env:
-          # Sin certificado de Apple/Windows: la app sale sin firmar
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Windows sin certificado: sale sin firmar. En Mac se firma ad-hoc (mac.identity: '-')
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'Windows' && 'false' || 'true' }}
+
+      - name: Verificar firma (Mac)
+        if: runner.os == 'macOS'
+        working-directory: desktop
+        run: |
+          APP=$(find release -maxdepth 2 -name Cocina.app -type d | head -1)
+          echo "App: $APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dv "$APP" 2>&1 | grep -E 'Signature|Format|Identifier'
+          lipo -archs "$APP/Contents/MacOS/Cocina"
 
       - uses: actions/upload-artifact@v4
         with:
